@@ -2,7 +2,11 @@
 
 Juego de automatización industrial para aprender a programar y a trabajar con bases de datos: programas robots en **JavaScript**, monitoreas tu fábrica con **PostgreSQL** y gestionas una ciudad que compra tus circuitos… y se queja de tu humo.
 
-**Demo web:** _publicándose en Vercel (el enlace aparecerá aquí)._
+## ▶ Demo web: **https://codemageddon-demo.vercel.app**
+
+Funciona en el navegador (Chrome o Edge recomendados; la primera carga son unos 67 MB). Incluye los programas JavaScript de los robots y PostgreSQL (PGlite) corriendo dentro de tu navegador. Pulsa **F1** para ver los controles y sigue el panel de **objetivos**.
+
+Vercel publica la carpeta `demo/` en cada push a `main`. Para actualizarla, ejecuta `sh Concepto2/tools/exportar_web.sh` y sube el cambio.
 
 | Carpeta | Qué es |
 | --- | --- |

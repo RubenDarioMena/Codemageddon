@@ -11,7 +11,7 @@ Primer prototipo en Godot. Toma el feedback sobre el [Concepto 1](../Concepto1/R
 - Una ciudad que compra, se queja, protesta y audita.
 - **Programas en JavaScript** que los robots ejecutan y **PostgreSQL** real, en escritorio y en la web.
 
-**Demo web:** ver el enlace en el [README del repositorio](../README.md).
+**Demo web:** **https://codemageddon-demo.vercel.app** (se publica desde `demo/` en cada push a `main`).
 
 ![Inicio](docs/capturas/01_inicio.jpg)
 
