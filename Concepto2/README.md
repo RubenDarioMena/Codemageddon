@@ -9,6 +9,9 @@ Primer prototipo en Godot. Toma el feedback sobre el [Concepto 1](../Concepto1/R
 - Robots por niveles.
 - Máquinas que registran todo en una base de datos.
 - Una ciudad que compra, se queja, protesta y audita.
+- **Programas en JavaScript** que los robots ejecutan y **PostgreSQL** real, en escritorio y en la web.
+
+**Demo web:** ver el enlace en el [README del repositorio](../README.md).
 
 ![Inicio](docs/capturas/01_inicio.jpg)
 
@@ -20,14 +23,22 @@ Con Godot 4.7 en `/Applications`, abre la carpeta `Concepto2` como proyecto y pu
 /Applications/Godot.app/Contents/MacOS/Godot --path Concepto2
 ```
 
-La partida empieza con la ayuda abierta (F1). Las capturas de esta página las genera el propio juego con un guion de pruebas (ver «Pruebas»).
+La partida empieza con la ayuda abierta (F1) y un panel de **objetivos** guía la demo. Las capturas de esta página las genera el propio juego con un guion de pruebas (ver «Pruebas»).
+
+Para PostgreSQL y los programas JS en escritorio hace falta Node.js 20 o superior y, una vez:
+
+```bash
+cd Concepto2/servicio && npm install
+```
+
+Sin Node el juego funciona igual con SQLite y sin programas.
 
 ## Decisiones de tecnología
 
 | Tema | Hoy | Destino | Cómo se evita perder algo al migrar |
 | --- | --- | --- | --- |
-| Base de datos | SQLite ([godot-sqlite](https://github.com/2shady4u/godot-sqlite) v4.9, MIT, en `addons/`, para escritorio y web) | **PostgreSQL** | Todo el SQL del juego (esquema, ejemplos de la consola, auditoría de la ciudad) usa el subconjunto común de los dos motores. Sin `strftime` ni `AUTOINCREMENT`, y el tiempo se guarda como `t`, `dia` y `hora`. Las diferencias están aisladas en `scripts/db/base_datos.gd` y en el token `{ID}` de `datos/esquema.sql`. |
-| Código del jugador | Las órdenes por clic se muestran como un programa **JavaScript** (`Robot.programa()`). | **JavaScript** ejecutado por el jugador | La API que se ve (`robots[1].recoger("REC-01", "cobre")`, `entregar`, `minar`, `buscarMena`…) es el contrato que deberá cumplir el runtime JS embebido. Las órdenes ya son datos serializables (GDD §10). |
+| Base de datos | **PostgreSQL 18** vía [PGlite](https://pglite.dev) (Postgres compilado a WASM): en escritorio dentro del servicio Node, en la web dentro del navegador. Respaldo: SQLite ([godot-sqlite](https://github.com/2shady4u/godot-sqlite) v4.9) si no hay Node. | PostgreSQL | Todo el SQL del juego usa el subconjunto común de los dos motores. Las diferencias están aisladas en `scripts/db/base_datos.gd` y en el token `{ID}` de `datos/esquema.sql`. En escritorio la base también escucha el protocolo de Postgres en `127.0.0.1:5433` (usuario `postgres`), para psql o DBeaver. |
+| Código del jugador | **JavaScript real**: un `worker_thread` de Node por robot (escritorio) o un Web Worker (web), con la misma API. | JavaScript | La API (`yo.recoger("REC-01", "cobre")`, `maquinas["FUN-01"].espacio("cobre")`, `await db.query(...)`…) es igual en los dos runtimes: `servicio/runtime_robot.mjs` y `servicio/web/servicio_web.js`. |
 | Renderizador | Compatibility (WebGL 2 / OpenGL) | Web + escritorio | El mismo que recomienda el GDD para Netlify y Steam. |
 
 La base es **registro y proyección**: borrar o editar filas no crea ni destruye material.
@@ -46,6 +57,23 @@ La base es **registro y proyección**: borrar o editar filas no crea ni destruye
 
 Comprar o extraer: el cobre comprado es caro pero inmediato. Las menas de la zona salvaje son gratis, pero exigen fabricar exploradores.
 
+**Programas (tecla J).** Con un robot T1 o T2 seleccionado, J abre su editor:
+
+- **Plantillas:**
+  - bucle básico,
+  - condiciones sin derrames,
+  - monitoreo con SQL,
+  - funciones,
+  - explorador.
+- **«Desde mis clics»** convierte la lista de órdenes que diste con el ratón en código.
+- **Órdenes:** son `await` que duran tiempo de juego (con el juego en pausa, el programa espera) y devuelven `"ok"`, `"viaje_vacio"`, `"derrame"`…
+- **Ejecución y errores:** la línea en curso se ilumina, los errores marcan su línea, y un bucle sin `await` se detiene a los 3 s con una explicación.
+- **Control manual:** dar una orden con el ratón detiene el programa.
+- **Registro:** `log()` escribe en la consola del robot y en la tabla `eventos`.
+- **SQL dentro del programa:** `await db.query(...)` consulta la base, así que un programa puede decidir según el monitoreo.
+
+El mundo arranca con un Operario T1 (R3) para poder programar desde el principio.
+
 **Errores físicos legibles (GDD §5).**
 
 - Recoger en un sitio vacío es un `viaje_vacio`.
@@ -60,7 +88,7 @@ Comprar o extraer: el cobre comprado es caro pero inmediato. Las menas de la zon
 - Al seleccionar una máquina, el panel muestra sus últimos eventos *junto con la consulta SQL que los produce*.
 - La capacidad del registro es limitada. Los servidores la amplían; si se llena, el juego borra los eventos más antiguos (retención) y avisa.
 - Hay ejemplos de `GROUP BY`, `JOIN`, `CASE`, índices y retención manual.
-- El archivo `partida.db` se puede abrir con DBeaver, DB Browser o `sqlite3` mientras juegas.
+- En escritorio, la base se puede abrir con psql o DBeaver mientras juegas (`127.0.0.1:5433`, usuario `postgres`).
 
 ![Consola SQL](docs/capturas/04_consola.jpg)
 
@@ -100,6 +128,7 @@ El jugador no ve las utilidades: ve la tabla `quejas` y tiene que **descubrir la
 | L · X · U | Bucle · borrar órdenes · rutina automática (robots) |
 | Z · T · V | Pausar máquina · turno diurno · enviar camión (despacho) |
 | P · + / − | Pausa · velocidad (×1, ×2, ×4, ×8) |
+| J | Editor del programa JavaScript del robot seleccionado |
 | F1 · F2 | Ayuda · consola SQL |
 
 Las **cintas** entregan material en la casilla de **entrada** de una máquina (lado cian) y reciben de su **salida** (lado ámbar). El fantasma de construcción muestra los dos puertos. El arrastre traza una L: el eje con más recorrido va primero.
@@ -131,14 +160,21 @@ Los modelos se generan con `tools/blender/modelos.py`, ya sea sin ventana o en t
 scripts/config.gd          constantes de diseño y balance
 scripts/sim/               simulación pura a 20 Hz (sin nodos): rejilla + A*, máquinas, cintas,
                            robots, camiones, ciudad (logit anidado)
-scripts/db/base_datos.gd   adaptador SQLite → PostgreSQL: volcado por lotes, proyecciones, retención
+scripts/db/base_datos.gd   adaptador PostgreSQL/SQLite: volcado por lotes, proyecciones, retención,
+                           consultas síncronas (escritorio) y asíncronas (todas las plataformas)
+scripts/servicio/          conexión con el servicio: Node por TCP (escritorio) o JavaScriptBridge (web)
+servicio/main.mjs          servicio de escritorio: PGlite + runtime JS (worker_threads)
+servicio/runtime_robot.mjs API del juego para los programas (escritorio)
+servicio/web/              servicio web: PGlite en el navegador + Web Workers (misma API)
 datos/esquema.sql          esquema en el subconjunto común SQLite/PostgreSQL
 scripts/mundo/pixel.gd     generadores de pixel art (portados del Concepto 1) y caras de robot
 scripts/vista/             terreno, flora, ciudad, máquinas GLB, robots, cámara RTS
-scripts/ui/                control AoE2, HUD con minimapa, consola SQL, estilo
+scripts/ui/                control AoE2, HUD con minimapa y objetivos, consola SQL, editor de programas
 scripts/principal.gd       bucle: pasos fijos con velocidad, interpolación, base de datos, auditorías
 shaders/                   terreno, sprites, losa, cintas, edificios
 tools/blender/modelos.py   familia paramétrica de modelos (10 GLB)
+tools/exportar_web.sh      exporta la demo web a ../demo (Godot + servicio web + PGlite)
+docs/JEV.md                análisis de Jev (TypeSafe AI) para las decisiones del juego
 pruebas/                   pruebas sin ventana y guiones con capturas
 ```
 
@@ -152,12 +188,25 @@ G=/Applications/Godot.app/Contents/MacOS/Godot
 $G --headless --path . -s pruebas/prueba_sim.gd       # línea inicial + consultas
 $G --headless --path . -s pruebas/prueba_larga.gd     # 3 días: ventas, quejas, bloqueo, ordenanza, auditoría
 $G --path . -- --guion=res://pruebas/guion_controles.gd   # 11 comprobaciones de controles por eventos reales
+$G --path . -- --guion=res://pruebas/guion_programas.gd   # 10 comprobaciones de JS + PostgreSQL de punta a punta
 $G --path . -- --guion=res://pruebas/guion_capturas.gd    # capturas en pruebas/capturas/
 ```
 
 Último resultado (22 de octubre de 2026):
 
 - `guion_controles`: 0 fallos en 11 comprobaciones.
+- `guion_programas`: 0 fallos en 10 comprobaciones:
+  - Postgres 18.3.
+  - Un programa JS que entrega cobre.
+  - Pausa.
+  - `db.query` dentro del programa.
+  - Error de sintaxis en su línea.
+  - Vigilante de bucles sin `await`.
+  - Control manual que detiene el programa.
+- Web (Chromium):
+  - PostgreSQL arranca en el navegador.
+  - Un programa JS se ejecuta en un Web Worker con la línea resaltada.
+  - El primer objetivo se completa con el ratón.
 - `prueba_larga`:
   - 288 lingotes y 129 circuitos.
   - 12 ventas.
@@ -167,10 +216,10 @@ $G --path . -- --guion=res://pruebas/guion_capturas.gd    # capturas en pruebas/
 
 ## Límites conocidos
 
-- **Sin runtime JavaScript:** el jugador todavía no escribe código. Ve el programa que generan sus clics y la rutina del T2. Es la prueba prioritaria del GDD (GodotJS/QuickJS o un intérprete propio con interrupción).
-- **SQLite, no PostgreSQL:** falta la vía PGlite (web) y un PostgreSQL local (escritorio) detrás del mismo adaptador.
+- **JavaScript en escritorio depende de Node:** para distribuir en Steam habrá que empaquetar Node (o pasar el mismo protocolo a QuickJS). Los programas no son un sandbox de seguridad para código ajeno (GDD §10): son un entorno educativo.
+- **PostgreSQL en memoria:** la base se crea vacía en cada partida; no hay guardado todavía.
+- **Web:** la demo pesa unos 67 MB (Godot con extensiones + PGlite). Solo se probó en Chromium.
 - **Balance sin ajustar:** precios, ruido, quejas y tiempos son de primera pasada. Las mulas derraman mucho si se usan en bucle hacia máquinas llenas (intencional, pero puede frustrar).
 - **Movimiento:** solo hay órdenes por destino con A*. La variante «por pasos» del GDD queda pendiente.
 - **Rotación y sprites:** con la cámara girada, el sombreado dibujado de los sprites no coincide con el sol. El ajuste a 45° lo limita.
-- **Web:** no se probó la exportación web ni en Netlify, ni otro hardware que un Mac M1.
 - **Datos:** el registro no tiene integridad (se pueden borrar eventos para esquivar la auditoría). Puede ser una mecánica futura: sellos encadenados, auditoría de huecos.
