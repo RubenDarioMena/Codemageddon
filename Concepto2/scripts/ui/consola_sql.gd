@@ -101,7 +101,7 @@ func iniciar(p_db: BaseDatos) -> void:
 	tabla.column_titles_visible = true
 	v.add_child(tabla)
 	var pie := Label.new()
-	pie.text = "Archivo: %s  ·  ábrelo también con DBeaver, DB Browser o sqlite3. Destino del juego: PostgreSQL (mismo SQL)." % db.ruta_absoluta()
+	pie.text = db.descripcion()
 	pie.add_theme_color_override("font_color", Estilo.TENUE)
 	pie.add_theme_font_size_override("font_size", 12)
 	pie.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -128,7 +128,7 @@ func ejecutar() -> void:
 		estado.text = "Error: " + r.error
 		estado.add_theme_color_override("font_color", Estilo.ROJO)
 	else:
-		estado.text = "%d filas · %.2f ms" % [r.filas.size(), r.ms]
+		estado.text = "%d filas · %.2f ms · %s" % [r.filas.size(), r.ms, db.motor.get_slice(" (", 0)]
 		estado.add_theme_color_override("font_color", Estilo.VERDE)
 
 
@@ -147,7 +147,12 @@ static func llenar_tabla(t: Tree, r: Dictionary, max_filas: int = 500) -> void:
 		var it := t.create_item(raiz)
 		for i in cols.size():
 			var v = f[cols[i]]
-			it.set_text(i, "NULL" if v == null else (str(snappedf(v, 0.01)) if v is float else str(v)))
+			var s := "NULL"
+			if v is float:
+				s = str(int(v)) if v == floor(v) and abs(v) < 1e15 else str(snappedf(v, 0.01))
+			elif v != null:
+				s = str(v)
+			it.set_text(i, s)
 			if v == null:
 				it.set_custom_color(i, Estilo.TENUE)
 

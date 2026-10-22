@@ -21,6 +21,7 @@ var registro: Array[Dictionary] = []
 var quejas: Array[Dictionary] = []
 var avisos: Array[Dictionary] = []
 var auditorias: Array[Dictionary] = []   # consultas SQL que la ciudad quiere ejecutar sobre tu registro
+var resultados: Array[Dictionary] = []   # órdenes de programas JS terminadas: {robot, ticket, resultado}
 var contadores := {}                # prefijo -> último número usado
 var sig_robot := 1
 var sig_camion := 1
@@ -48,6 +49,7 @@ func _instalacion_inicial() -> void:
 		cintas.poner(Vector2i(x, 61), 0, 0.0)
 	_nuevo_robot(0, Vector2(22.5, 65.5))
 	_nuevo_robot(0, Vector2(23.5, 65.5))
+	_nuevo_robot(1, Vector2(22.5, 67.5))   # un Operario con chip para empezar a programar
 	log_evento("EMPRESA", "inicio", "", 0, "Instalación inicial", dinero)
 
 
@@ -291,6 +293,55 @@ func set_auto(r: Robot, v: bool) -> void:
 		r.pc = 0
 
 
+# ================================================================ programas JS
+
+## Una orden que viene de un programa: sustituye la lista del robot y lleva un ticket que se
+## devuelve con su resultado cuando la acción termina (así `await` espera el tiempo simulado).
+func orden_programa(r: Robot, datos: Dictionary, ticket: int) -> void:
+	var o := {"tipo": str(datos.get("tipo", "")), "fase": "", "ticket": ticket}
+	match o.tipo:
+		"mover":
+			var c := Vector2i(int(datos.get("x", 0)), int(datos.get("z", 0)))
+			o.celda = c if rejilla.libre(c) else rejilla.casilla_libre_cerca(c)
+		"recoger", "entregar", "reparar", "minar":
+			o.objetivo = str(datos.get("objetivo", ""))
+			if datos.get("material", "") != "":
+				o.material = str(datos.material)
+		"esperar":
+			o.seg = float(datos.get("seg", 1.0))
+		_:
+			resultados.append({"robot": r.id, "ticket": ticket, "resultado": "orden_desconocida"})
+			return
+	if o.tipo == "minar" and not r.def.minar:
+		resultados.append({"robot": r.id, "ticket": ticket, "resultado": "sin_pala"})
+		return
+	r.ordenes = [o]
+	r.pc = 0
+	r.repetir = false
+	r.auto = false
+	r.resultado = "ok"
+	r.camino = PackedVector2Array()
+
+
+## Foto del mundo para los programas (sensores y red de planta). Solo datos simples.
+func instantanea() -> Dictionary:
+	var rs := {}
+	for r in robots:
+		rs[str(r.id)] = {"nivel": r.nivel, "x": snappedf(r.pos.x, 0.01), "z": snappedf(r.pos.y, 0.01),
+			"carga": r.carga if r.cant > 0 else null, "cantidad": r.cant, "capacidad": r.cap(), "estado": r.estado}
+	var ms := {}
+	for m: Maquina in maquinas.values():
+		var acepta: Array = m.def.get("acepta", [])
+		if acepta.is_empty() and m.def.has("recetas"):
+			acepta = m.receta_actual().entra.keys()
+		ms[m.id] = {"tipo": m.tipo, "estado": m.estado, "x": m.centro().x, "z": m.centro().y,
+			"entrada": m.entrada.duplicate(), "salida": m.salida.duplicate(), "cap_entrada": m.cap_entrada(), "acepta": acepta}
+	var mn := []
+	for m in rejilla.menas:
+		mn.append({"id": m.id, "x": m.celda.x + 0.5, "z": m.celda.y + 0.5, "cantidad": m.cantidad})
+	return {"t": snappedf(t, 0.01), "hora": snappedf(hora(), 0.01), "dia": dia(), "robots": rs, "maquinas": ms, "menas": mn}
+
+
 # ================================================================ paso
 
 func paso() -> void:
@@ -423,7 +474,11 @@ func _paso_robot(r: Robot, dt: float) -> void:
 
 func _terminar(r: Robot) -> void:
 	if r.pc < r.ordenes.size():
-		r.ordenes[r.pc].fase = ""
+		var o: Dictionary = r.ordenes[r.pc]
+		o.fase = ""
+		if o.has("ticket"):
+			resultados.append({"robot": r.id, "ticket": o.ticket, "resultado": r.resultado})
+	r.resultado = "ok"
 	r.pc += 1
 	r.camino = PackedVector2Array()
 	if r.pc >= r.ordenes.size() and r.repetir and r.def.bucle and not r.ordenes.is_empty():
@@ -451,17 +506,22 @@ func _acercamiento(r: Robot, o: Dictionary) -> Vector2i:
 
 
 func _ejecutar_orden(r: Robot, o: Dictionary, dt: float) -> void:
+	if o.fase == "" and o.tipo == "esperar":
+		o.fase = "accion"
+		r.timer = 0.0
 	if o.fase == "":
 		var meta := _acercamiento(r, o)
 		if meta.x < 0:
 			log_evento(r.nombre(), "sin_objetivo", "", 0, str(o.get("objetivo", "")))
 			r.estado = "sin_ruta"
+			r.resultado = "sin_objetivo"
 			_terminar(r)
 			return
 		if not _planificar(r, meta):
 			log_evento(r.nombre(), "sin_ruta", "", 0, str(o.get("objetivo", "")))
 			aviso("%s no encuentra camino." % r.nombre(), "error", "ruta" + r.nombre())
 			r.estado = "sin_ruta"
+			r.resultado = "sin_ruta"
 			_terminar(r)
 			return
 		o.fase = "ruta"
@@ -475,9 +535,13 @@ func _ejecutar_orden(r: Robot, o: Dictionary, dt: float) -> void:
 		o.fase = "accion"
 		r.timer = 0.0
 	# fase acción
-	var foco := _foco(o)
-	_mirar(r, foco, dt)
 	r.timer += dt
+	if o.tipo == "esperar":
+		r.estado = "esperando"
+		if r.timer >= float(o.seg):
+			_terminar(r)
+		return
+	_mirar(r, _foco(o), dt)
 	match o.tipo:
 		"recoger":
 			r.estado = "recogiendo"
@@ -521,6 +585,7 @@ func _recoger(r: Robot, o: Dictionary) -> void:
 		var pila: Dictionary = suelo.get(o.celda, {})
 		if pila.is_empty() or (r.carga != "" and r.carga != pila.mat) or hueco <= 0:
 			log_evento(r.nombre(), "viaje_vacio", "", 0, "suelo")
+			r.resultado = "viaje_vacio"
 			return
 		var n: int = min(hueco, pila.cant)
 		pila.cant -= n
@@ -530,6 +595,7 @@ func _recoger(r: Robot, o: Dictionary) -> void:
 		return
 	var m: Maquina = maquinas.get(o.objetivo)
 	if m == null:
+		r.resultado = "sin_objetivo"
 		return
 	var mat: String = o.get("material", "")
 	if mat == "":
@@ -541,11 +607,13 @@ func _recoger(r: Robot, o: Dictionary) -> void:
 	if r.carga != "" and r.carga != mat and mat != "":
 		log_evento(r.nombre(), "manos_ocupadas", r.carga, r.cant, m.id)
 		aviso("%s ya lleva %s." % [r.nombre(), r.carga], "error")
+		r.resultado = "manos_ocupadas"
 		return
 	var n: int = min(hueco, hay)
 	if n <= 0:
 		# Recoger en un punto vacío es una acción del mundo, no un error de programa (GDD §5).
 		log_evento(r.nombre(), "viaje_vacio", mat, 0, m.id)
+		r.resultado = "viaje_vacio"
 		return
 	m.salida[mat] -= n
 	_cargar(r, mat, n, m.id)
@@ -560,14 +628,17 @@ func _cargar(r: Robot, mat: String, n: int, desde: String) -> void:
 func _entregar(r: Robot, id: String) -> void:
 	var m: Maquina = maquinas.get(id)
 	if m == null:
+		r.resultado = "sin_objetivo"
 		return
 	if r.cant <= 0:
 		log_evento(r.nombre(), "entrega_vacia", "", 0, id)
+		r.resultado = "entrega_vacia"
 		return
 	var n := m.aceptar(r.carga, r.cant)
 	if n < 0:
 		log_evento(m.id, "rechazo", r.carga, r.cant, r.nombre())
 		aviso("%s no usa %s: %s se lo queda." % [m.id, r.carga, r.nombre()], "error", "rechazo" + m.id + r.nombre())
+		r.resultado = "rechazo"
 		return
 	if n > 0:
 		log_evento(m.id, "entrada", r.carga, n, r.nombre())
@@ -576,6 +647,7 @@ func _entregar(r: Robot, id: String) -> void:
 	if resto > 0:
 		# Entrada llena: el material cae al suelo y se puede recuperar (GDD §5).
 		_derramar(r.pos, r.carga, resto, r.nombre())
+		r.resultado = "derrame"
 		aviso("%s estaba llena: %s derramó %d %s. Consulta los derrames en la base." % [m.id, r.nombre(), resto, r.carga], "aviso", "derrame" + m.id)
 	r.carga = ""
 	r.cant = 0
@@ -584,6 +656,8 @@ func _entregar(r: Robot, id: String) -> void:
 func _minar_una(r: Robot, mena: Dictionary) -> bool:
 	if mena.is_empty() or mena.cantidad <= 0:
 		log_evento(r.nombre(), "viaje_vacio", "cobre", 0, mena.get("id", "?"))
+		if r.cant == 0:
+			r.resultado = "agotada"
 		return false
 	if r.carga != "" and r.carga != "cobre":
 		return false

@@ -110,7 +110,7 @@ func _process(delta: float) -> void:
 				paso += 1
 		5:
 			if t > 3.0:
-				_comprobar(c.sel_robots.size() == 2, "arrastrar selecciona con caja (sel=%s)" % [c.sel_robots])
+				_comprobar(c.sel_robots.size() >= 2, "arrastrar selecciona con caja (sel=%s)" % [c.sel_robots])
 				_tecla(KEY_ESCAPE)
 				_tecla(KEY_B)
 				paso += 1

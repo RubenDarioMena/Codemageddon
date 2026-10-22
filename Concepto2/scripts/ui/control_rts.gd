@@ -18,6 +18,7 @@ var sel_maquina := ""
 var sel_otro := {}                # {tipo: "mena"/"camion", id}
 var grupos := {}
 var modo := "normal"              # normal · menu · colocar · cinta
+var resaltado := ""               # id resaltado desde el editor de programas
 var tipo_colocar := ""
 var rot_colocar := 0
 var fantasma: Node3D
@@ -208,6 +209,12 @@ func _tecla(k: InputEventKey) -> bool:
 	# Atajos de la selección (como el panel de comandos de AoE2).
 	if not sel_robots.is_empty():
 		var rs := robots_sel()
+		if tecla == KEY_J:
+			p.hud.alternar_editor()
+			return true
+		if tecla in [KEY_L, KEY_X, KEY_U]:
+			for r in rs:
+				p.detener_programa(r)
 		match tecla:
 			KEY_L:
 				var activar := not rs[0].repetir
@@ -412,6 +419,9 @@ func _orden(pos: Vector2, encolar: bool) -> void:
 	var rs := robots_sel()
 	if rs.is_empty():
 		return
+	# Tomar el control manual suspende el programa (GDD §5): nunca compiten por el robot.
+	for r in rs:
+		p.detener_programa(r, "control manual, programa detenido")
 	var c := _celda_bajo(pos)
 	var punto := cam.rayo_suelo(pos, 0.1)
 	var destino := Vector3(c.x + 0.5, 0.12, c.y + 0.5)
@@ -619,14 +629,24 @@ func _dibujar_capa() -> void:
 		var r := Rect2(_presion, get_viewport().get_mouse_position() - _presion).abs()
 		capa.draw_rect(r, Color(0.25, 0.95, 0.55, 0.12), true)
 		capa.draw_rect(r, Color(0.25, 0.95, 0.55, 0.9), false, 1.5)
+	# Objeto bajo el cursor del editor de programas.
+	if resaltado != "":
+		if resaltado.begins_with("R") and resaltado.substr(1).is_valid_int():
+			var r := sim.robot(int(resaltado.substr(1)))
+			if r != null:
+				capa.draw_arc(cam.a_pantalla(_pos3(r)), 22.0, 0, TAU, 32, Estilo.AMBAR, 3.0)
+		elif sim.maquinas.has(resaltado):
+			_marco(sim.maquinas[resaltado].rect(), Estilo.AMBAR, 3.0)
 	# Marco de la máquina seleccionada (en pantalla, sobre su huella).
 	if sel_maquina != "" and sim.maquinas.has(sel_maquina):
-		var m: Maquina = sim.maquinas[sel_maquina]
-		var e := m.rect()
-		var esquinas := [Vector3(e.position.x, 0.12, e.position.y), Vector3(e.end.x, 0.12, e.position.y),
-			Vector3(e.end.x, 0.12, e.end.y), Vector3(e.position.x, 0.12, e.end.y)]
-		var pts := PackedVector2Array()
-		for q in esquinas:
-			pts.append(cam.a_pantalla(q))
-		pts.append(pts[0])
-		capa.draw_polyline(pts, Color("3fe08a"), 2.0)
+		_marco(sim.maquinas[sel_maquina].rect(), Color("3fe08a"), 2.0)
+
+
+func _marco(e: Rect2i, color: Color, grosor: float) -> void:
+	var esquinas := [Vector3(e.position.x, 0.12, e.position.y), Vector3(e.end.x, 0.12, e.position.y),
+		Vector3(e.end.x, 0.12, e.end.y), Vector3(e.position.x, 0.12, e.end.y)]
+	var pts := PackedVector2Array()
+	for q in esquinas:
+		pts.append(cam.a_pantalla(q))
+	pts.append(pts[0])
+	capa.draw_polyline(pts, color, grosor)

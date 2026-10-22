@@ -1,0 +1,15 @@
+{
+  "name": "codemageddon-servicio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Proceso auxiliar del juego: PostgreSQL (PGlite) y runtime JavaScript de los programas del jugador.",
+  "type": "module",
+  "main": "main.mjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-socket": "0.2.11"
+  }
+}

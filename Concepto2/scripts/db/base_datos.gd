@@ -1,36 +1,67 @@
 class_name BaseDatos
 extends RefCounted
-## Adaptador de base de datos. Hoy usa SQLite (godot-sqlite); el destino es PostgreSQL.
-## Para que la migración no pierda nada:
+## Adaptador de base de datos con dos motores detrás de la misma interfaz:
+##   - PostgreSQL (destino): PGlite en el servicio auxiliar de Node (scripts/servicio/servicio.gd).
+##   - SQLite (respaldo): godot-sqlite, si no hay Node. El juego funciona igual, sin programas JS.
+## Para que cambiar de motor no pierda nada:
 ##   - Todo el SQL del juego (esquema, ejemplos, auditorías) usa el subconjunto común de los dos.
-##   - Las diferencias quedan aquí: el token {ID} del esquema y la escritura por lotes.
+##   - Las diferencias quedan aquí: el token {ID} del esquema y cómo se escribe y se consulta.
 ##   - El mundo no se lee de la base. La base es registro y proyección (GDD §10): borrar una fila
 ##     no crea ni destruye material.
 
-const RUTA := "user://partida.db"
+const RUTA_SQLITE := "user://partida.db"
+const ID := {
+	"sqlite": "INTEGER PRIMARY KEY",
+	"postgres": "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY",
+}
 
-var db: SQLite
+var motor := "SQLite"
+var es_postgres := false
 var filas_eventos := 0
+var servicio: Servicio = null
+var db: SQLite = null
 var _esquema := ""
 
 
-func abrir() -> void:
-	var absoluta := ProjectSettings.globalize_path(RUTA)
-	if FileAccess.file_exists(RUTA):
+static func esquema(dialecto: String) -> String:
+	return FileAccess.get_file_as_string("res://datos/esquema.sql").replace("{ID}", ID[dialecto])
+
+
+## Con un servicio conectado (que ya creó el esquema en PostgreSQL) usa PostgreSQL; si no, SQLite.
+func abrir(p_servicio: Servicio = null) -> void:
+	if p_servicio != null and p_servicio.conectado:
+		servicio = p_servicio
+		es_postgres = true
+		motor = p_servicio.motor
+		_esquema = esquema("postgres")
+		return
+	var absoluta := ProjectSettings.globalize_path(RUTA_SQLITE)
+	if FileAccess.file_exists(RUTA_SQLITE):
 		DirAccess.remove_absolute(absoluta)
 	db = SQLite.new()
-	db.path = RUTA
+	db.path = RUTA_SQLITE
 	db.verbosity_level = SQLite.QUIET
 	db.open_db()
-	_esquema = FileAccess.get_file_as_string("res://datos/esquema.sql").replace("{ID}", "INTEGER PRIMARY KEY")
+	_esquema = esquema("sqlite")
+	motor = "SQLite " + str(_consulta_sqlite("SELECT sqlite_version() AS v").filas[0].v)
 	crear_esquema()
 
 
-func ruta_absoluta() -> String:
-	return ProjectSettings.globalize_path(RUTA)
+## Texto para la interfaz: dónde está la base y cómo abrirla con otras herramientas.
+func descripcion() -> String:
+	if es_postgres:
+		var conexion := ""
+		if servicio.puerto_pg > 0:
+			conexion = " · conéctate con psql/DBeaver: host 127.0.0.1, puerto %d, usuario postgres" % servicio.puerto_pg
+		return "%s, en memoria%s." % [motor, conexion]
+	return "%s · archivo %s (ábrelo con DB Browser o sqlite3). Destino: PostgreSQL (mismo SQL)." % [
+		motor, ProjectSettings.globalize_path(RUTA_SQLITE)]
 
 
 func crear_esquema() -> void:
+	if es_postgres:
+		servicio.sql(_esquema)
+		return
 	for sentencia in dividir(_esquema):
 		db.query(sentencia)
 
@@ -39,14 +70,18 @@ func crear_esquema() -> void:
 func volcar(sim: Simulacion) -> String:
 	var aviso := ""
 	if not sim.registro.is_empty():
-		if not db.insert_rows("eventos", sim.registro):
+		if es_postgres:
+			servicio.enviar({"op": "insertar", "tabla": "eventos", "filas": sim.registro})
+		elif not db.insert_rows("eventos", sim.registro):
 			crear_esquema()
 			db.insert_rows("eventos", sim.registro)
 			aviso = "La tabla eventos no existía: el juego la volvió a crear."
 		filas_eventos += sim.registro.size()
 		sim.registro.clear()
 	if not sim.quejas.is_empty():
-		if not db.insert_rows("quejas", sim.quejas):
+		if es_postgres:
+			servicio.enviar({"op": "insertar", "tabla": "quejas", "filas": sim.quejas})
+		elif not db.insert_rows("quejas", sim.quejas):
 			crear_esquema()
 			db.insert_rows("quejas", sim.quejas)
 		sim.quejas.clear()
@@ -65,7 +100,9 @@ func proyectar(sim: Simulacion) -> void:
 		rob.append({"id": r.id, "nivel": r.def.nivel, "modelo": r.def.nombre, "estado": r.estado,
 			"carga": r.carga if r.carga != "" else null, "cantidad": r.cant, "x": snappedf(r.pos.x, 0.1),
 			"z": snappedf(r.pos.y, 0.1), "distancia": snappedf(r.distancia, 0.1)})
-
+	if es_postgres:
+		servicio.enviar({"op": "proyectar", "maquinas": maq, "robots": rob})
+		return
 	if not db.query("DELETE FROM maquinas"):
 		crear_esquema()
 	db.query("DELETE FROM robots")
@@ -73,24 +110,44 @@ func proyectar(sim: Simulacion) -> void:
 	db.insert_rows("robots", rob)
 
 
-
 ## Política de retención: si el registro supera la capacidad, se borran los eventos más antiguos.
 func retener(capacidad: int) -> int:
-	if not db.query("SELECT COUNT(*) AS n FROM eventos") or db.query_result.is_empty():
+	var r := consultar("SELECT COUNT(*) AS n FROM eventos")
+	if not r.ok or r.filas.is_empty():
 		return 0
-	filas_eventos = int(db.query_result[0].n)
+	filas_eventos = int(r.filas[0].n)
 	var exceso := filas_eventos - capacidad
 	if exceso <= 0:
 		return 0
-	db.query("DELETE FROM eventos WHERE id IN (SELECT id FROM eventos ORDER BY id LIMIT %d)" % exceso)
+	consultar("DELETE FROM eventos WHERE id IN (SELECT id FROM eventos ORDER BY id LIMIT %d)" % exceso)
 	filas_eventos = capacidad
 	return exceso
 
 
-## Consulta del jugador. Admite varias sentencias separadas por «;»; devuelve el resultado de la última.
+## Consulta del jugador (o del juego). Admite varias sentencias separadas por «;» y devuelve la
+## última. Formato común: {ok, columnas: [StringName], filas: [{columna: valor}], error, ms}.
 func consultar(sql: String) -> Dictionary:
+	if not es_postgres:
+		return _consulta_sqlite(sql)
+	var r := servicio.sql(sql)
+	var columnas: Array = []
+	for c in r.get("columnas", []):
+		columnas.append(StringName(c))
+	var filas: Array = []
+	for f in r.get("filas", []):
+		var d := {}
+		for i in columnas.size():
+			var v = f[i]
+			# JSON no distingue enteros: 3.0 vuelve a ser 3.
+			d[columnas[i]] = int(v) if v is float and v == floor(v) and abs(v) < 1e15 else v
+		filas.append(d)
+	return {"ok": bool(r.get("ok", false)), "columnas": columnas, "filas": filas, "error": str(r.get("error", "")),
+		"ms": float(r.get("ms", 0.0))}
+
+
+func _consulta_sqlite(sql: String) -> Dictionary:
 	var inicio := Time.get_ticks_usec()
-	var res := {"ok": true, "columnas": [], "filas": [], "error": "", "ms": 0.0, "afectadas": 0}
+	var res := {"ok": true, "columnas": [], "filas": [], "error": "", "ms": 0.0}
 	var sentencias := dividir(sql)
 	if sentencias.is_empty():
 		res.ok = false

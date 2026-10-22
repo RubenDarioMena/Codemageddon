@@ -4,3 +4,4 @@ __pycache__/
 *.blend1
 node_modules/
 .godot/
+Concepto2/servicio/node_modules/

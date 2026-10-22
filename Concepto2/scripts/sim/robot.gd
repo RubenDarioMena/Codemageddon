@@ -24,6 +24,13 @@ var timer := 0.0
 var estado := "ocioso"
 var distancia := 0.0
 var atasco := 0.0            # segundos sin avanzar hacia el siguiente punto
+var resultado := "ok"        # resultado de la orden en curso (lo recibe el programa JS)
+var codigo := ""             # programa JavaScript del jugador
+var ejecutando := false      # el programa corre en el servicio
+var ejecucion := 0           # número de la ejecución en curso (descarta mensajes de una anterior)
+var linea := 0               # línea del programa que está esperando
+var linea_error := 0
+var consola: Array[String] = []
 
 
 func _init(p_id: int, p_nivel: int, p_pos: Vector2) -> void:
@@ -52,7 +59,7 @@ func celda() -> Vector2i:
 
 
 func ocioso() -> bool:
-	return pc >= ordenes.size() and not auto
+	return pc >= ordenes.size() and not auto and not ejecutando
 
 
 func vel() -> float:
@@ -65,6 +72,8 @@ func programa() -> Array:
 	var ref := "robots[%d]" % id
 	var lineas: PackedStringArray = []
 	var activa := -1
+	if ejecutando and codigo != "":
+		return [PackedStringArray(codigo.split("\n")), linea - 1]
 	if auto and pc >= ordenes.size():
 		lineas = [
 			"// Rutina del explorador (sensores + pala)",
@@ -98,6 +107,8 @@ func programa() -> Array:
 
 func _linea(o: Dictionary, ref: String) -> String:
 	match o.tipo:
+		"esperar":
+			return "await %s.esperar(%s);" % [ref, str(o.get("seg", 1.0))]
 		"mover":
 			return "await %s.ir(%d, %d);" % [ref, o.celda.x, o.celda.y]
 		"recoger":

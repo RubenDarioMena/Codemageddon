@@ -27,6 +27,7 @@ var minimapa: TextureRect
 var mini_capa: Control
 var ayuda: PanelContainer
 var consola: ConsolaSQL
+var editor: EditorPrograma
 var menu_abierto := false
 var _t_info := 0.0
 var _t_fijados := 0.0
@@ -62,6 +63,19 @@ func iniciar(principal: Node) -> void:
 	consola.iniciar(p.db)
 	consola.fijar.connect(fijar_panel)
 	consola.visible = false
+	editor = EditorPrograma.new()
+	editor.anchor_left = 1.0
+	editor.anchor_right = 1.0
+	editor.anchor_bottom = 1.0
+	editor.offset_left = -780
+	editor.offset_right = -10
+	editor.offset_top = 52
+	editor.offset_bottom = -214
+	raiz.add_child(editor)
+	editor.iniciar()
+	editor.ejecutar.connect(p.ejecutar_programa)
+	editor.detener.connect(func(r): p.detener_programa(r))
+	editor.resaltar.connect(func(id): p.control.resaltado = id)
 
 
 # ================================================================ construcción de la interfaz
@@ -245,9 +259,11 @@ func _input(e: InputEvent) -> void:
 		elif e.keycode == KEY_F1:
 			ayuda.visible = not ayuda.visible
 			get_viewport().set_input_as_handled()
-		elif e.keycode == KEY_ESCAPE and (consola.visible or ayuda.visible):
+		elif e.keycode == KEY_ESCAPE and (consola.visible or ayuda.visible or editor.visible):
 			consola.visible = false
 			ayuda.visible = false
+			editor.visible = false
+			p.control.resaltado = ""
 			get_viewport().gui_release_focus()
 			get_viewport().set_input_as_handled()
 
@@ -255,6 +271,22 @@ func _input(e: InputEvent) -> void:
 func _escribiendo() -> bool:
 	var f := get_viewport().gui_get_focus_owner()
 	return f is LineEdit or f is TextEdit
+
+
+func alternar_editor() -> void:
+	var rs: Array[Robot] = p.control.robots_sel()
+	if editor.visible:
+		editor.visible = false
+		p.control.resaltado = ""
+		get_viewport().gui_release_focus()
+		return
+	if rs.size() != 1:
+		aviso("Selecciona un solo robot para ver su programa.", "info")
+		return
+	consola.visible = false
+	editor.visible = true
+	editor.mostrar(rs[0])
+	editor.editor.grab_focus()
 
 
 func alternar_consola() -> void:
@@ -272,7 +304,7 @@ func actualizar(delta: float) -> void:
 	lbl_vel.text = "PAUSA" if p.velocidad == 0.0 else "×%d" % int(p.velocidad)
 	lbl_precio.text = "Circuito en la ciudad: ₵ %.1f" % sim.ciudad.precio
 	var cap := sim.capacidad_registro()
-	lbl_registro.text = "Registro: %d / %d filas" % [p.db.filas_eventos, cap]
+	lbl_registro.text = "%s · registro %d / %d filas" % ["PostgreSQL" if p.db.es_postgres else "SQLite", p.db.filas_eventos, cap]
 	lbl_registro.add_theme_color_override("font_color", Estilo.AMBAR if p.db.filas_eventos > cap * 0.85 else Estilo.TEXTO)
 	var op := 0.0
 	for d in sim.ciudad.distritos.values():
@@ -352,6 +384,9 @@ func _flotante() -> void:
 func al_cambiar_seleccion() -> void:
 	_reconstruir_comandos()
 	_render_info()
+	if editor.visible:
+		var rs: Array[Robot] = p.control.robots_sel()
+		editor.mostrar(rs[0] if rs.size() == 1 else null)
 
 
 func mostrar_menu_construccion(v: bool) -> void:
@@ -489,6 +524,16 @@ func _reconstruir_comandos() -> void:
 		var bo := Estilo.boton("Robot ocioso", ".")
 		bo.pressed.connect(_simular_tecla.bind(KEY_PERIOD))
 		comandos.add_child(bo)
+		var bj := Estilo.boton("Programar", "J", "Escribe su programa en JavaScript.")
+		bj.disabled = r.nivel == 0
+		if r.nivel == 0:
+			bj.tooltip_text = "La mula T0 no tiene chip: fabrica un Operario (T1)."
+		bj.pressed.connect(_simular_tecla.bind(KEY_J))
+		comandos.add_child(bj)
+		if r.ejecutando:
+			var bd := Estilo.boton("Detener programa")
+			bd.pressed.connect(func(): p.detener_programa(r))
+			comandos.add_child(bd)
 		return
 	if c.sel_maquina != "" and sim.maquinas.has(c.sel_maquina):
 		var m: Maquina = sim.maquinas[c.sel_maquina]
