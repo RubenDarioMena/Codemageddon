@@ -1,0 +1,30 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="Codemageddon · Concepto 2"
+config/description="Prototipo Godot: fábrica, mundo grande, controles RTS y monitoreo con SQL."
+run/main_scene="res://escenas/principal.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot-sqlite/plugin.cfg")
+
+[physics]
+
+common/physics_ticks_per_second=20
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+anti_aliasing/quality/msaa_3d=1

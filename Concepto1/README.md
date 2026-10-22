@@ -67,7 +67,7 @@ Verificado el 22 de octubre de 2026 en esta Mac:
 | --- | --- | --- | --- |
 | Blender 5.2.2 LTS | `/Applications/Blender.app` | ✅ `Blender -b --python …` (lo usé para el GLB) | **MCP for Blender** (antes `blender-mcp`, de ahujasid). `claude mcp add blender uvx mcp-for-blender`, después `uvx mcp-for-blender install-addon`, activar «Interface: MCP for Blender» y pulsar *Start MCP Server* en el panel N. |
 | FreeCAD 1.1.4 | `/Applications/FreeCAD.app` | ✅ `Contents/Resources/bin/freecadcmd` | **neka-nat/freecad-mcp** (MIT). Copiar `addon/FreeCADMCP` a `~/Library/Application Support/FreeCAD/v1-1/Mod/`, elegir el workbench «MCP Addon» y pulsar *Start RPC Server*. Registro: `claude mcp add freecad -- uvx freecad-mcp`. |
-| Godot 4.7.2 | `~/Desktop/Godot.app` | ✅ `Godot --headless` | **Coding-Solo/godot-mcp**: `claude mcp add godot -e GODOT_PATH=/Users/rubenmena/Desktop/Godot.app/Contents/MacOS/Godot -- npx @coding-solo/godot-mcp`. Permite lanzar el editor, ejecutar el proyecto y leer la salida de depuración. |
+| Godot 4.7.2 | `/Applications/Godot.app` | ✅ `Godot --headless` | **Coding-Solo/godot-mcp**: `claude mcp add godot -e GODOT_PATH=/Applications/Godot.app/Contents/MacOS/Godot -- npx @coding-solo/godot-mcp`. Permite lanzar el editor, ejecutar el proyecto y leer la salida de depuración. |
 
 Requisitos ya presentes: `uv`/`uvx` y Node 22.
 
@@ -75,7 +75,7 @@ Requisitos ya presentes: `uv`/`uvx` y Node 22.
 
 Los MCP de Godot y Blender están registrados en el ámbito de usuario de Claude Code (`~/.claude.json`), así que valen en cualquier proyecto. Aparecen en las sesiones nuevas, no en la que los instaló. FreeCAD queda pendiente.
 
-- **godot**: `npx -y @coding-solo/godot-mcp` con `GODOT_PATH` apuntando a `~/Desktop/Godot.app`. Probado: responde `get_godot_version` → `4.7.2.stable` y expone 14 herramientas. Si mueves Godot a `/Applications`, hay que actualizar `GODOT_PATH`.
+- **godot**: `npx -y @coding-solo/godot-mcp` con `GODOT_PATH` apuntando a `/Applications/Godot.app` (movido desde el Escritorio el 22 de octubre de 2026). Probado: responde `get_godot_version` → `4.7.2.stable` y expone 14 herramientas.
 - **blender**: `uvx mcp-for-blender` con `DISABLE_TELEMETRY=true`, lo que apaga incluso el registro anónimo mínimo. El complemento quedó copiado en `~/Library/Application Support/Blender/5.2/scripts/addons/blender_mcp.py`. Lo revisé: el consentimiento de telemetría viene desactivado, las integraciones externas (Poly Haven, Sketchfab, Meshy, Hyper3D, Poly Pizza) también, y el socket solo escucha en `localhost:9876`.
   - **Falta un paso manual en Blender:** Edit → Preferences → Add-ons → buscar «MCP for Blender» → activarlo, y dejar desmarcado «Allow Telemetry». Después, en el visor 3D: `N` → pestaña *MCP for Blender* → *Start MCP Server*. Hay que pulsar *Start* en cada sesión de Blender en la que quieras trabajar conmigo.
 
@@ -87,7 +87,6 @@ El CLI `claude` no está en el PATH de la terminal. El que trae la app de escrit
 - **Orden sugerido:** Godot MCP al empezar el prototipo en Godot; Blender MCP cuando quieras modelar «a cuatro manos»; FreeCAD al final, para piezas mecánicas que luego se exporten como malla.
 - **Seguridad del MCP de Blender:** `execute_blender_code` ejecuta Python arbitrario y el socket local no tiene autenticación, así que hay que dejarlo solo en localhost. Por defecto envía telemetría anónima de uso; `DISABLE_TELEMETRY=true` la desactiva.
 - Una fuente secundaria menciona un MCP oficial de Blender Lab (`projects.blender.org/lab/blender_mcp`). No pude verificarlo porque la página respondió 403.
-- Conviene mover Godot a `/Applications` para que las herramientas lo detecten solas.
 
 ## Cómo se traduciría a Godot
 
