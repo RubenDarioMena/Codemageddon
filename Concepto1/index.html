@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codemageddon · Concepto 1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="c" aria-label="Mundo de Codemageddon"></canvas>
+
+  <header class="barra">
+    <div class="marca">
+      <span class="logo">CODEMAGEDDON</span>
+      <span class="sub">Concepto 1 · estilo híbrido</span>
+    </div>
+    <dl class="recursos">
+      <div><dt>Créditos</dt><dd><span id="creditos">0</span> ₵</dd></div>
+      <div><dt>Robots</dt><dd id="n-robots">0</dd></div>
+      <div><dt>Cobre en tolva</dt><dd id="n-cobre">0</dd></div>
+      <div><dt>Lingotes</dt><dd id="n-lingotes">0</dd></div>
+      <div><dt>Chips vendidos</dt><dd id="n-chips">0</dd></div>
+    </dl>
+    <div class="acciones">
+      <button id="comprar" class="primario" title="Tecla B">Construir robot · 15 ₵</button>
+      <button id="pausa" aria-pressed="false" title="Espacio">Pausa</button>
+      <div class="grupo" role="group" aria-label="Velocidad">
+        <button data-vel="1" aria-pressed="true" title="Tecla 1">1×</button>
+        <button data-vel="2" aria-pressed="false" title="Tecla 2">2×</button>
+        <button data-vel="4" aria-pressed="false" title="Tecla 3">4×</button>
+      </div>
+    </div>
+  </header>
+
+  <aside class="capas" aria-label="Capas visuales">
+    <h2>Capas visuales</h2>
+    <p class="nota">Desactiva una capa para ver qué técnica dibuja cada cosa.</p>
+    <label><input type="checkbox" data-capa="terreno" checked><span class="chip c2d">2D</span> Terreno · pixel art procedural</label>
+    <label><input type="checkbox" data-capa="flora" checked><span class="chip c2d">2D</span> Flora y menas · sprites</label>
+    <label><input type="checkbox" data-capa="vfx" checked><span class="chip c2d">2D</span> Humo, chispas y carga natural</label>
+    <label><input type="checkbox" data-capa="fabrica" checked><span class="chip c3d">3D</span> Fábrica y cintas · modelos</label>
+    <label><input type="checkbox" data-capa="ciudad" checked><span class="chip c3d">3D</span> Ciudad humana · modelos</label>
+    <label><input type="checkbox" data-capa="robots" checked><span class="chip cmix">3D+2D</span> Robots · volumen 3D, piel pixel</label>
+  </aside>
+
+  <aside id="inspector" class="inspector" hidden aria-live="polite">
+    <header>
+      <h2 id="ins-id">R1</h2>
+      <button id="cerrar-inspector" class="icono" aria-label="Cerrar inspector">×</button>
+    </header>
+    <dl>
+      <dt>Estado</dt><dd id="ins-estado">—</dd>
+      <dt>Carga</dt><dd id="ins-carga">—</dd>
+      <dt>Mena</dt><dd id="ins-mena">—</dd>
+    </dl>
+    <pre id="programa" class="programa"></pre>
+    <button id="reanudar" hidden>Reanudar rutina (R)</button>
+    <p class="nota">Clic en una mena: asignarla. Clic en el suelo: mover a mano (pausa la rutina).</p>
+  </aside>
+
+  <footer class="ayuda">
+    <span><kbd>Clic</kbd> robot</span>
+    <span><kbd>Arrastrar</kbd> / <kbd>WASD</kbd> mover</span>
+    <span><kbd>Rueda</kbd> zoom por píxel entero</span>
+    <span><kbd>Q</kbd><kbd>E</kbd> girar</span>
+    <span><kbd>Espacio</kbd> pausa</span>
+  </footer>
+
+  <div id="etiquetas" aria-hidden="true"></div>
+  <div id="aviso" role="status"></div>
+  <div id="carga">Generando terreno y sprites…</div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
