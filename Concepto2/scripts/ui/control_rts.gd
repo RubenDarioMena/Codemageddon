@@ -197,7 +197,7 @@ func _tecla(k: InputEventKey) -> bool:
 			_ultimo_grupo = g
 			_t_grupo = 0.0
 		return true
-	if tecla == KEY_PERIOD:
+	if tecla == KEY_PERIOD or k.unicode == 46:   # en la web el punto puede llegar solo como carácter
 		_siguiente_ocioso()
 		return true
 	if tecla == KEY_H:

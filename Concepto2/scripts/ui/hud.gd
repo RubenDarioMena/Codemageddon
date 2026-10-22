@@ -29,6 +29,12 @@ var ayuda: PanelContainer
 var consola: ConsolaSQL
 var editor: EditorPrograma
 var menu_abierto := false
+var _log_maquina := {}
+var objetivos: RichTextLabel
+var _t_objetivos := 0.0
+var _objetivos_hechos := 0
+var hitos_ui := {}               # consultas y paneles: hitos que ocurren en la interfaz
+var _consulta_maquina_en_curso := false
 var _t_info := 0.0
 var _t_fijados := 0.0
 var _pista_t := 0.0
@@ -62,6 +68,7 @@ func iniciar(principal: Node) -> void:
 	raiz.add_child(consola)
 	consola.iniciar(p.db)
 	consola.fijar.connect(fijar_panel)
+	consola.ejecutada.connect(func(): hitos_ui.sql = true)
 	consola.visible = false
 	editor = EditorPrograma.new()
 	editor.anchor_left = 1.0
@@ -203,6 +210,21 @@ func _laterales() -> void:
 	lbl_pista.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl_pista.add_theme_constant_override("outline_size", 6)
 	raiz.add_child(lbl_pista)
+	# Objetivos guiados: arriba a la derecha, debajo de la barra.
+	var po := PanelContainer.new()
+	po.anchor_left = 1.0
+	po.anchor_right = 1.0
+	po.offset_left = -330
+	po.offset_right = -10
+	po.offset_top = 50
+	po.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	raiz.add_child(po)
+	objetivos = RichTextLabel.new()
+	objetivos.bbcode_enabled = true
+	objetivos.fit_content = true
+	objetivos.custom_minimum_size = Vector2(300, 0)
+	objetivos.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	po.add_child(objetivos)
 	lbl_flotante = Label.new()
 	lbl_flotante.add_theme_color_override("font_outline_color", Color.BLACK)
 	lbl_flotante.add_theme_constant_override("outline_size", 6)
@@ -243,7 +265,9 @@ Eres la IA de una empresa nueva: un terreno, ₵ 1200, dos mulas sin chip y una 
 
 [color=#ffb547]Robots[/color]  T0 Mula: ejecuta tu lista una vez · T1 Operario: [b]L[/b] la repite en bucle · T2 Explorador: [b]U[/b] rutina propia (busca menas y comprueba espacio antes de entregar)
 
-[color=#ffb547]Datos[/color]  Cada máquina tiene un ID y registra entradas, salidas y estados en la tabla [b]eventos[/b]. Consulta con SQL (F2) y [b]fija[/b] lo que quieras vigilar. La ciudad también lee tu registro…
+[color=#ffb547]Programas (JavaScript)[/color]  Selecciona un T1 o T2 y pulsa [b]J[/b]: escribe su programa con [code]await yo.recoger(...)[/code], [code]maquinas["FUN-01"][/code] o [code]await db.query("SELECT ...")[/code]. Las órdenes duran tiempo de juego y la línea en curso se ilumina.
+
+[color=#ffb547]Datos (PostgreSQL)[/color]  Cada máquina tiene un ID y registra entradas, salidas y estados en la tabla [b]eventos[/b]. Consulta con SQL (F2) y [b]fija[/b] lo que quieras vigilar. La ciudad también lee tu registro… En la web, PostgreSQL corre dentro de tu navegador.
 
 [color=#7f95a3]F1 cierra esta ayuda.[/color]"""
 	ayuda.add_child(t)
@@ -304,7 +328,8 @@ func actualizar(delta: float) -> void:
 	lbl_vel.text = "PAUSA" if p.velocidad == 0.0 else "×%d" % int(p.velocidad)
 	lbl_precio.text = "Circuito en la ciudad: ₵ %.1f" % sim.ciudad.precio
 	var cap := sim.capacidad_registro()
-	lbl_registro.text = "%s · registro %d / %d filas" % ["PostgreSQL" if p.db.es_postgres else "SQLite", p.db.filas_eventos, cap]
+	var motor: String = "PostgreSQL" if p.db.es_postgres else ("PostgreSQL arrancando…" if p.db.pendiente else p.db.motor.get_slice(" ", 0))
+	lbl_registro.text = "%s · registro %d / %d filas" % [motor, p.db.filas_eventos, cap]
 	lbl_registro.add_theme_color_override("font_color", Estilo.AMBAR if p.db.filas_eventos > cap * 0.85 else Estilo.TEXTO)
 	var op := 0.0
 	for d in sim.ciudad.distritos.values():
@@ -332,6 +357,46 @@ func actualizar(delta: float) -> void:
 		lbl_pista.text = ""
 	mini_capa.queue_redraw()
 	_flotante()
+	editor.offset_left = -min(780.0, get_viewport().get_visible_rect().size.x * 0.56)
+	_objetivos(delta)
+
+
+## Pasos de la demo: cada uno enseña una idea (órdenes, programa, SQL, automatización, mercado).
+const OBJETIVOS := [
+	["entrega", "Lleva cobre a FUN-01 con una mula: clic en la mula, clic derecho en la pila de cobre de REC-01, Shift + clic derecho en FUN-01."],
+	["programa", "Programa al Operario R3: selecciónalo, pulsa J y ejecuta la plantilla."],
+	["sql", "Abre la consola SQL (F2) y ejecuta una consulta."],
+	["panel", "Fija una consulta como panel para monitorear la fábrica."],
+	["cinta_despacho", "Traza una cinta de ENS-01 a DES-01 (B, Q, arrastrar)."],
+	["venta", "Vende circuitos en la ciudad (DES-01 → camión)."],
+	["robot", "Construye una Fábrica de robots (B, A) y fabrica un robot."],
+]
+
+
+func _objetivos(delta: float) -> void:
+	_t_objetivos += delta
+	if _t_objetivos < 0.5:
+		return
+	_t_objetivos = 0.0
+	var t := "[color=#59f0ff][b]OBJETIVOS[/b][/color]\n"
+	var hechos := 0
+	var siguiente_marcado := false
+	for o in OBJETIVOS:
+		var hecho: bool = sim.hitos.get(o[0], false) or hitos_ui.get(o[0], false)
+		if hecho:
+			hechos += 1
+			t += "[color=#3fe08a]✔[/color] [color=#7f95a3]%s[/color]\n" % o[1]
+		elif not siguiente_marcado:
+			siguiente_marcado = true
+			t += "[color=#ffb547]▶[/color] %s\n" % o[1]
+		else:
+			t += "[color=#4e6270]○ %s[/color]\n" % o[1]
+	if hechos == OBJETIVOS.size():
+		t = "[color=#3fe08a][b]OBJETIVOS COMPLETADOS[/b][/color]\nYa sabes dar órdenes, programar en JS, monitorear con SQL y automatizar. Ahora escala sin enfadar a la ciudad."
+	objetivos.text = t
+	if hechos > _objetivos_hechos and _objetivos_hechos > 0 or hechos > _objetivos_hechos and hechos == 1:
+		aviso("Objetivo cumplido (%d/%d)." % [hechos, OBJETIVOS.size()], "dinero")
+	_objetivos_hechos = hechos
 
 
 func aviso(texto: String, tipo: String = "info") -> void:
@@ -471,7 +536,13 @@ func _info_maquina(m: Maquina) -> String:
 		t += "Aporta %d filas de capacidad al registro.\n" % Cfg.MAQUINAS.servidor.filas
 	# Registro de la máquina, con la consulta a la vista: así se aprende de dónde sale el dato.
 	var sql := "SELECT hora, tipo, material, cantidad, detalle FROM eventos WHERE origen = '%s' ORDER BY id DESC LIMIT 5;" % m.id
-	var r: Dictionary = p.db.consultar(sql)
+	# Consulta asíncrona: se pinta con el último resultado recibido y se pide otro.
+	if not _consulta_maquina_en_curso:
+		_consulta_maquina_en_curso = true
+		p.db.consultar_luego(sql, func(res):
+			_consulta_maquina_en_curso = false
+			_log_maquina = {"id": m.id, "filas": res.filas if res.ok else []})
+	var r: Dictionary = _log_maquina if _log_maquina.get("id", "") == m.id else {"filas": []}
 	t += "[color=#6a8394][code]%s[/code][/color]\n" % Estilo.escapar(sql)
 	for f in r.filas:
 		t += "[code][color=#9fb4d8]%02d h  %-12s %-9s %3s  %s[/color][/code]\n" % [int(f.hora), str(f.tipo), "" if f.material == null else str(f.material),
@@ -619,7 +690,7 @@ func fijar_panel(sql: String, titulo: String) -> void:
 	var cab := HBoxContainer.new()
 	v.add_child(cab)
 	var l := Label.new()
-	l.text = "📌 " + titulo
+	l.text = "▪ " + titulo
 	l.add_theme_color_override("font_color", Estilo.ACENTO)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.clip_text = true
@@ -637,6 +708,7 @@ func fijar_panel(sql: String, titulo: String) -> void:
 	v.add_child(t)
 	fijados.add_child(panel)
 	_refrescar_uno(panel)
+	hitos_ui.panel = true
 	aviso("Panel fijado: se actualiza cada 2 s.", "info")
 
 
@@ -649,7 +721,9 @@ func _refrescar_uno(panel: Node) -> void:
 	if panel.is_queued_for_deletion():
 		return
 	var t: Tree = panel.get_child(0).get_child(1)
-	ConsolaSQL.llenar_tabla(t, p.db.consultar(panel.get_meta("sql")), 12)
+	p.db.consultar_luego(panel.get_meta("sql"), func(r):
+		if is_instance_valid(t):
+			ConsolaSQL.llenar_tabla(t, r, 12))
 
 
 # ================================================================ minimapa

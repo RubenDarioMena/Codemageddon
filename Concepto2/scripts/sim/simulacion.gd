@@ -22,6 +22,7 @@ var quejas: Array[Dictionary] = []
 var avisos: Array[Dictionary] = []
 var auditorias: Array[Dictionary] = []   # consultas SQL que la ciudad quiere ejecutar sobre tu registro
 var resultados: Array[Dictionary] = []   # órdenes de programas JS terminadas: {robot, ticket, resultado}
+var hitos := {}                     # logros de la partida para los objetivos guiados
 var contadores := {}                # prefijo -> último número usado
 var sig_robot := 1
 var sig_camion := 1
@@ -320,6 +321,7 @@ func orden_programa(r: Robot, datos: Dictionary, ticket: int) -> void:
 	r.repetir = false
 	r.auto = false
 	r.resultado = "ok"
+	hitos.programa = true
 	r.camino = PackedVector2Array()
 
 
@@ -414,6 +416,7 @@ func _producir(m: Maquina, dt: float) -> String:
 	if rec.has("robot"):
 		var sale := rejilla.casilla_libre_cerca(m.celda_salida(), 4)
 		var r := _nuevo_robot(rec.robot, Vector2(sale) + Vector2(0.5, 0.5))
+		hitos.robot = true
 		log_evento(m.id, "salida", "robot", 1, r.nombre())
 		aviso("%s fabricó %s." % [m.id, r.etiqueta()], "info")
 	else:
@@ -453,6 +456,8 @@ func _entregar_desde_cinta(destino: Vector2i, material: String) -> int:
 	var n := m.aceptar(material, 1)
 	if n == 1:
 		log_evento(m.id, "entrada", material, 1, "cinta")
+		if m.tipo == "despacho":
+			hitos.cinta_despacho = true
 	elif n == -1 and not _estado_previo.get(m.id + material, false):
 		log_evento(m.id, "rechazo", material, 1, "cinta")
 	_estado_previo[m.id + material] = n == -1
@@ -643,6 +648,7 @@ func _entregar(r: Robot, id: String) -> void:
 	if n > 0:
 		log_evento(m.id, "entrada", r.carga, n, r.nombre())
 		log_evento(r.nombre(), "entrega", r.carga, n, m.id)
+		hitos.entrega = true
 	var resto := r.cant - n
 	if resto > 0:
 		# Entrada llena: el material cae al suelo y se puede recuperar (GDD §5).
@@ -994,6 +1000,7 @@ func _vender(c: Dictionary) -> void:
 		total += monto
 		log_evento(c.id, "venta", mat, c.carga[mat], "mercado", monto)
 	dinero += total
+	hitos.venta = true
 	aviso("%s vendió en la ciudad por ₵ %d." % [c.id, int(total)], "dinero")
 	c.carga = {}
 

@@ -4,6 +4,7 @@ extends PanelContainer
 ## vigilar lo consultas tú y lo fijas como panel. Así el jugador construye su propio monitoreo.
 
 signal fijar(sql: String, titulo: String)
+signal ejecutada
 
 const EJEMPLOS := [
 	["Últimos eventos", "SELECT t, origen, tipo, material, cantidad, detalle\nFROM eventos\nORDER BY id DESC\nLIMIT 20;"],
@@ -122,13 +123,18 @@ func _teclas_editor(e: InputEvent) -> void:
 
 
 func ejecutar() -> void:
-	var r := db.consultar(editor.text)
+	estado.text = "ejecutando…"
+	db.consultar_luego(editor.text, _mostrar)
+
+
+func _mostrar(r: Dictionary) -> void:
 	llenar_tabla(tabla, r)
 	if not r.ok:
 		estado.text = "Error: " + r.error
 		estado.add_theme_color_override("font_color", Estilo.ROJO)
 	else:
 		estado.text = "%d filas · %.2f ms · %s" % [r.filas.size(), r.ms, db.motor.get_slice(" (", 0)]
+		ejecutada.emit()
 		estado.add_theme_color_override("font_color", Estilo.VERDE)
 
 

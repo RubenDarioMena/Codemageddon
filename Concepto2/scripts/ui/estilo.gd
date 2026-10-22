@@ -22,12 +22,18 @@ static func caja(fondo: Color = FONDO, borde: Color = BORDE, radio: int = 4, mar
 	return s
 
 
+## Fuentes incluidas (DejaVu, licencia libre): iguales en escritorio y web, con ₵, ☀, ⚠, →…
+static func fuente() -> Font:
+	return load("res://assets/fuentes/DejaVuSans.ttf")
+
+
 static func tema() -> Theme:
 	var t := Theme.new()
+	t.default_font = fuente()
 	t.default_font_size = 14
-	var mono := SystemFont.new()
-	mono.font_names = PackedStringArray(["Menlo", "SF Mono", "Consolas", "DejaVu Sans Mono", "monospace"])
-	t.set_font("normal_font", "RichTextLabel", SystemFont.new())
+	var mono: Font = load("res://assets/fuentes/DejaVuSansMono.ttf")
+	t.set_font("normal_font", "RichTextLabel", fuente())
+	t.set_font("bold_font", "RichTextLabel", load("res://assets/fuentes/DejaVuSans-Bold.ttf"))
 	t.set_font("mono_font", "RichTextLabel", mono)
 	t.set_font("font", "CodeEdit", mono)
 	t.set_font("font", "TextEdit", mono)

@@ -23,13 +23,17 @@ var _t_foto := 0.0
 
 
 func _ready() -> void:
+	ThemeDB.fallback_font = Estilo.fuente()   # también para los Label3D del mundo
 	sim = Simulacion.new()
 	# PostgreSQL y JavaScript viven en el servicio auxiliar (Node). Sin él: SQLite y sin programas.
 	servicio = Servicio.new()
 	add_child(servicio)
 	var con_servicio := servicio.iniciar(BaseDatos.esquema("postgres"))
 	db = BaseDatos.new()
-	db.abrir(servicio if con_servicio else null)
+	if servicio.estado == Servicio.INICIANDO:
+		db.abrir_pendiente()   # web: PGlite tarda unos segundos en cargar en el navegador
+	else:
+		db.abrir(servicio if con_servicio else null)
 	vmundo = VistaMundo.new()
 	add_child(vmundo)
 	vmundo.construir(sim)
@@ -50,11 +54,8 @@ func _ready() -> void:
 	control.iniciar(self)
 	control.seleccion_cambiada.connect(hud.al_cambiar_seleccion)
 	hud.al_cambiar_seleccion()
-	hud.aviso("Base de datos: " + db.descripcion(), "info")
-	if con_servicio:
-		hud.aviso("Programas JavaScript activos: selecciona un robot T1 o T2 y pulsa J.", "info")
-	else:
-		hud.aviso("Sin servicio Node: %s Se usa SQLite y no hay programas JS." % servicio.error, "aviso")
+	if not db.pendiente:
+		_anunciar_base()
 	hud.aviso("Pulsa F1 para ver los controles. Selecciona una mula y haz clic derecho en la pila de cobre de REC-01.", "aviso")
 	# Pruebas automáticas: godot --path . -- --guion=res://pruebas/guion_capturas.gd
 	for arg in OS.get_cmdline_user_args():
@@ -84,7 +85,21 @@ func _process(delta: float) -> void:
 	hud.actualizar(delta)
 
 
+func _anunciar_base() -> void:
+	hud.aviso("Base de datos: " + db.descripcion(), "info")
+	if servicio.conectado:
+		hud.aviso("Programas JavaScript activos: selecciona un robot T1 o T2 y pulsa J.", "info")
+	else:
+		hud.aviso("Sin servicio de programas: %s Se usa %s y no hay programas JS." % [servicio.error, db.motor], "aviso")
+
+
 func _base_de_datos(delta: float) -> void:
+	if db.pendiente:
+		servicio.actualizar()
+		if servicio.estado != Servicio.INICIANDO:
+			db.abrir(servicio if servicio.conectado else null)
+			_anunciar_base()
+		return
 	_t_volcado += delta
 	_t_proyeccion += delta
 	_t_retencion += delta
@@ -98,16 +113,14 @@ func _base_de_datos(delta: float) -> void:
 		db.proyectar(sim)
 	if _t_retencion > 5.0:
 		_t_retencion = 0.0
-		var borradas := db.retener(sim.capacidad_registro())
-		if borradas > 0:
-			hud.aviso("Registro lleno: se borraron %d eventos antiguos. Construye un servidor o decide qué registrar." % borradas, "aviso")
+		db.retener_luego(sim.capacidad_registro(), func(borradas):
+			hud.aviso("Registro lleno: se borraron %d eventos antiguos. Construye un servidor o decide qué registrar." % borradas, "aviso"))
 	# La ciudad audita tu tabla de eventos con SQL (el mismo que podrías escribir tú).
 	for au in sim.auditorias:
 		db.volcar(sim)
 		db.proyectar(sim)
-		var r := db.consultar(au.sql)
 		hud.aviso("El ayuntamiento ejecutó sobre tu base:\n" + au.sql.replace("\n", " "), "aviso")
-		sim.resultado_auditoria(r.filas if r.ok else [])
+		db.consultar_luego(au.sql, func(r): sim.resultado_auditoria(r.filas if r.ok else []))
 	sim.auditorias.clear()
 
 

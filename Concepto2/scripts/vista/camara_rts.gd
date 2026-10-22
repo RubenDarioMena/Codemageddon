@@ -18,6 +18,9 @@ var orbitando := false
 var teclas_activas := true       # el control lo apaga mientras se escribe o en el menú de construcción
 var rotacion_con_qe := true
 var _size := 0.0
+## El desplazamiento por bordes solo actúa con el ratón dentro de la ventana. En la web, con el
+## ratón fuera del canvas Godot conserva su última posición (al principio, 0,0: una esquina).
+var _raton_dentro := false
 
 
 func _ready() -> void:
@@ -29,6 +32,8 @@ func _ready() -> void:
 	camara.make_current()
 	_size = _size_objetivo()
 	_aplicar()
+	get_window().mouse_exited.connect(func(): _raton_dentro = false)
+	get_window().focus_exited.connect(func(): _raton_dentro = false)
 
 
 func _size_objetivo() -> float:
@@ -53,7 +58,7 @@ func _process(delta: float) -> void:
 	var vp := get_viewport()
 	var raton := vp.get_mouse_position()
 	var tam := vp.get_visible_rect().size
-	if DisplayServer.window_is_focused() and Rect2(Vector2.ZERO, tam).has_point(raton) and not orbitando:
+	if _raton_dentro and Rect2(Vector2.ZERO, tam).has_point(raton) and not orbitando:
 		if raton.x < BORDE:
 			mover.x -= 1
 		elif raton.x > tam.x - BORDE:
@@ -79,6 +84,11 @@ func _aplicar() -> void:
 	var offset := Basis(Vector3.UP, yaw) * Vector3(0, sin(pitch), cos(pitch)) * 150.0
 	camara.size = _size
 	camara.look_at_from_position(objetivo + offset, objetivo, Vector3.UP)
+
+
+func _input(e: InputEvent) -> void:
+	if e is InputEventMouseMotion:
+		_raton_dentro = true
 
 
 func _unhandled_input(e: InputEvent) -> void:

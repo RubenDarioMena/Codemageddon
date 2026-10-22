@@ -17,9 +17,10 @@ const ID := {
 
 var motor := "SQLite"
 var es_postgres := false
+var pendiente := false          # web: PostgreSQL aún arrancando en el navegador (se acumulan los eventos)
 var filas_eventos := 0
 var servicio: Servicio = null
-var db: SQLite = null
+var db = null                  # SQLite (godot-sqlite) sin tipo estático: la extensión puede faltar
 var _esquema := ""
 
 
@@ -27,20 +28,31 @@ static func esquema(dialecto: String) -> String:
 	return FileAccess.get_file_as_string("res://datos/esquema.sql").replace("{ID}", ID[dialecto])
 
 
+## Web: la base se decide unos segundos después (cuando PGlite termina de cargar).
+func abrir_pendiente() -> void:
+	pendiente = true
+	motor = "PostgreSQL (arrancando…)"
+
+
 ## Con un servicio conectado (que ya creó el esquema en PostgreSQL) usa PostgreSQL; si no, SQLite.
 func abrir(p_servicio: Servicio = null) -> void:
+	pendiente = false
 	if p_servicio != null and p_servicio.conectado:
 		servicio = p_servicio
 		es_postgres = true
 		motor = p_servicio.motor
 		_esquema = esquema("postgres")
 		return
+	es_postgres = false
+	if not ClassDB.class_exists("SQLite"):
+		motor = "Sin base de datos"
+		return
 	var absoluta := ProjectSettings.globalize_path(RUTA_SQLITE)
 	if FileAccess.file_exists(RUTA_SQLITE):
 		DirAccess.remove_absolute(absoluta)
-	db = SQLite.new()
+	db = ClassDB.instantiate("SQLite")
 	db.path = RUTA_SQLITE
-	db.verbosity_level = SQLite.QUIET
+	db.verbosity_level = 0   # QUIET
 	db.open_db()
 	_esquema = esquema("sqlite")
 	motor = "SQLite " + str(_consulta_sqlite("SELECT sqlite_version() AS v").filas[0].v)
@@ -49,6 +61,10 @@ func abrir(p_servicio: Servicio = null) -> void:
 
 ## Texto para la interfaz: dónde está la base y cómo abrirla con otras herramientas.
 func descripcion() -> String:
+	if pendiente:
+		return "PostgreSQL arrancando en el navegador…"
+	if es_postgres and servicio.es_web:
+		return "%s, dentro de tu navegador (PGlite, en memoria)." % motor
 	if es_postgres:
 		var conexion := ""
 		if servicio.puerto_pg > 0:
@@ -60,7 +76,9 @@ func descripcion() -> String:
 
 func crear_esquema() -> void:
 	if es_postgres:
-		servicio.sql(_esquema)
+		servicio.sql_luego(_esquema, func(_r): pass)
+		return
+	if db == null:
 		return
 	for sentencia in dividir(_esquema):
 		db.query(sentencia)
@@ -68,7 +86,13 @@ func crear_esquema() -> void:
 
 ## Inserta las colas de la simulación. Si el jugador borró una tabla, se recrea y se avisa.
 func volcar(sim: Simulacion) -> String:
+	if pendiente:
+		return ""   # los eventos esperan en la simulación hasta que la base esté lista
 	var aviso := ""
+	if db == null and not es_postgres:
+		sim.registro.clear()
+		sim.quejas.clear()
+		return ""
 	if not sim.registro.is_empty():
 		if es_postgres:
 			servicio.enviar({"op": "insertar", "tabla": "eventos", "filas": sim.registro})
@@ -90,6 +114,8 @@ func volcar(sim: Simulacion) -> String:
 
 ## Reescribe las tablas de estado actual (maquinas, robots).
 func proyectar(sim: Simulacion) -> void:
+	if pendiente:
+		return
 	var maq: Array[Dictionary] = []
 	for m: Maquina in sim.maquinas.values():
 		maq.append({"id": m.id, "tipo": m.tipo, "x": m.celda.x, "z": m.celda.y, "ruido": m.ruido(),
@@ -102,6 +128,8 @@ func proyectar(sim: Simulacion) -> void:
 			"z": snappedf(r.pos.y, 0.1), "distancia": snappedf(r.distancia, 0.1)})
 	if es_postgres:
 		servicio.enviar({"op": "proyectar", "maquinas": maq, "robots": rob})
+		return
+	if db == null:
 		return
 	if not db.query("DELETE FROM maquinas"):
 		crear_esquema()
@@ -124,12 +152,41 @@ func retener(capacidad: int) -> int:
 	return exceso
 
 
-## Consulta del jugador (o del juego). Admite varias sentencias separadas por «;» y devuelve la
+## Versión asíncrona de `retener` (la que usa el juego: en la web nada puede bloquear).
+func retener_luego(capacidad: int, al_borrar: Callable) -> void:
+	consultar_luego("SELECT COUNT(*) AS n FROM eventos", func(r):
+		if not r.ok or r.filas.is_empty():
+			return
+		filas_eventos = int(r.filas[0].n)
+		var exceso := filas_eventos - capacidad
+		if exceso > 0:
+			consultar_luego("DELETE FROM eventos WHERE id IN (SELECT id FROM eventos ORDER BY id LIMIT %d)" % exceso, func(_r): pass)
+			filas_eventos = capacidad
+			al_borrar.call(exceso))
+
+
+## Consulta asíncrona: `listo` recibe el mismo formato que `consultar`. La usan la consola, el HUD,
+## los paneles fijados y las auditorías, porque funciona igual en escritorio y en la web.
+func consultar_luego(sql: String, listo: Callable) -> void:
+	if pendiente:
+		listo.call({"ok": false, "columnas": [], "filas": [], "error": "La base de datos aún está arrancando…", "ms": 0.0})
+	elif not es_postgres:
+		listo.call(_consulta_sqlite(sql))
+	else:
+		servicio.sql_luego(sql, func(r): listo.call(_convertir(r)))
+
+
+## Consulta síncrona (escritorio y pruebas). Admite varias sentencias separadas por «;» y devuelve la
 ## última. Formato común: {ok, columnas: [StringName], filas: [{columna: valor}], error, ms}.
 func consultar(sql: String) -> Dictionary:
+	if pendiente:
+		return {"ok": false, "columnas": [], "filas": [], "error": "La base de datos aún está arrancando…", "ms": 0.0}
 	if not es_postgres:
 		return _consulta_sqlite(sql)
-	var r := servicio.sql(sql)
+	return _convertir(servicio.sql(sql))
+
+
+func _convertir(r: Dictionary) -> Dictionary:
 	var columnas: Array = []
 	for c in r.get("columnas", []):
 		columnas.append(StringName(c))
@@ -148,6 +205,10 @@ func consultar(sql: String) -> Dictionary:
 func _consulta_sqlite(sql: String) -> Dictionary:
 	var inicio := Time.get_ticks_usec()
 	var res := {"ok": true, "columnas": [], "filas": [], "error": "", "ms": 0.0}
+	if db == null:
+		res.ok = false
+		res.error = "No hay base de datos disponible"
+		return res
 	var sentencias := dividir(sql)
 	if sentencias.is_empty():
 		res.ok = false
