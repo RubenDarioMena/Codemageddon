@@ -8,6 +8,8 @@ Funciona en el navegador (Chrome o Edge recomendados; la primera carga son unos 
 
 Vercel publica la carpeta `demo/` en cada push a `main`. Para actualizarla, ejecuta `sh Concepto2/tools/exportar_web.sh` y sube el cambio.
 
+La demo de pruebas incluye el laboratorio de jugabilidad (**F12**). La exportación pasa `--dev` al juego; para una versión sin devtools usa `CMG_DEVTOOLS_WEB=0 sh Concepto2/tools/exportar_web.sh`. Los paquetes llevan el identificador de la revisión para evitar mezclas de versiones en caché; `version.json` identifica el código y la huella del paquete publicado.
+
 | Carpeta | Qué es |
 | --- | --- |
 | [Concepto2/](Concepto2/README.md) | Prototipo actual en **Godot 4.7**: controles estilo AoE2, construcción, robots T0–T2, programas JS, PostgreSQL (PGlite), ciudad con logit anidado. |
