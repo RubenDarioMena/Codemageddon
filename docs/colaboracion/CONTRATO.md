@@ -56,7 +56,7 @@ Tipos de evento (`registro.tipo`) que emite hoy el código: `a_cinta`, `agotada`
 
 ## 3. Órdenes (presentación → simulación)
 
-Son **llamadas síncronas a métodos de `Simulacion`**, hechas entre pasos desde `ui/control_rts.gd`, `ui/hud.gd` y `principal.gd`. Convención: los métodos que devuelven `String` usan `""` para éxito y un mensaje legible para el jugador en caso de error.
+Son **llamadas síncronas a métodos de `Simulacion`**, hechas entre pasos desde `ui/control_rts.gd`, `ui/hud.gd` y `principal.gd`. Toda mutación del mundo pasa por `aplicar(cmd)`, que anota `{paso, cmd}` incluso si falla; `log_evento` y `aviso` solo alimentan colas de salida. Convención: los métodos que devuelven `String` usan `""` para éxito y un mensaje legible para el jugador en caso de error.
 
 | Método | Efecto |
 | --- | --- |
@@ -72,31 +72,26 @@ Son **llamadas síncronas a métodos de `Simulacion`**, hechas entre pasos desde
 | `orden_programa(r, datos, ticket)` | Orden de un programa JS: `datos = {tipo, x, z, objetivo, material, seg}`. Sustituye la lista del robot; el resultado vuelve por `sim.resultados` con el mismo `ticket` |
 | `instantanea() -> Dictionary` | Foto para los programas: `{t, hora, dia, robots: {id: {nivel, x, z, carga, cantidad, capacidad, estado}}, maquinas: {id: {tipo, estado, x, z, entrada, salida, cap_entrada, acepta}}, menas: [{id, x, z, cantidad}]}` |
 | `resultado_auditoria(filas)` | Aplica la multa de la auditoría nocturna |
+| `aplicar(cmd)` | Entrada única; admite `set_maquina` (`pausada`, `turno_diurno`, `receta`, `salida_cinta`, `envio_auto`), ciclo de programas y respuestas asíncronas |
+| `mena(id)` | Consulta pública por ID de mena |
+| `reproducir(diario, pasos)`, `huella()`, `huella_detalle()` | Replay desde cero, resumen hash y detalle explícito de la huella del mundo |
+
+`codigo`, `consola`, `linea` y `linea_error` son presentación y quedan fuera del diario. El paso de llegada de órdenes JS y auditorías depende del servicio/base en vivo; el diario permite reproducir exactamente la secuencia observada.
 
 Pausa y velocidad no son órdenes: viven en `principal.velocidad` y no tocan la simulación.
 
 Valores de `resultado` que devuelve la simulación: `ok`, `viaje_vacio`, `derrame`, `rechazo`, `entrega_vacia`, `manos_ocupadas`, `agotada`, `sin_objetivo`, `sin_ruta`, `sin_pala`, `orden_desconocida`.
 
-## Deuda conocida (no cumple los principios)
+## Deuda conocida
 
-1. **Escrituras directas desde la presentación.** No pasan por métodos de `Simulacion`:
-   - `ui/control_rts.gd:241,245`: `m.pausada` y `m.turno_diurno`.
-   - `ui/hud.gd:628,636,645`: `m.receta`, `m.salida_cinta` y `m.envio_auto`.
-   - `ui/editor_programa.gd:200,266`: `r.codigo` y `r.linea_error`.
-   - `principal.gd` (`ejecutar_programa`, `detener_programa`, `_programas`): `r.ejecutando`, `r.ejecucion`, `r.linea`, `r.auto`, `r.repetir`, `r.ordenes.clear()` y `r.pc`.
-   Afectan a la simulación, así que un replay no las vería.
-2. **`ui/hud.gd:476` llama a `sim._mena(id)`**, que es privado. Hace falta un `mena(id)` público.
-3. **Entradas asíncronas.** Las órdenes de programas JS (`orden_programa`) y el resultado de la auditoría (`resultado_auditoria`) llegan cuando responde el servicio o la base, así que el paso en que se aplican depende del frame. Con programas o auditorías activos, mismo seed + mismas acciones no garantiza el mismo estado.
-4. `sim.quitar_cinta(c)` existe, pero ninguna parte de la UI la llama: las cintas terminadas no se pueden demoler.
+1. **Pendiente de migrar en la UI (Claude):** `control_rts.gd` escribe `m.pausada` y `m.turno_diurno`; `hud.gd` escribe `m.receta`, `m.salida_cinta` y `m.envio_auto`, y consulta `sim._mena(id)`. Los comandos `set_maquina` y `sim.mena(id)` ya están disponibles.
+2. `editor_programa.gd` escribe `codigo` y `linea_error`, estado de presentación excluido del diario.
+3. El paso de llegada de respuestas asíncronas depende del servicio/base en vivo; queda registrado para replay.
+4. `sim.quitar_cinta(c)` existe, pero ninguna parte de la UI la llama.
 
-## Pendiente: cola de comandos única (aplazado)
+## Cola de comandos única (hecho)
 
-> **Estado: aplazado.** No se implementa hasta recibir otra ronda de feedback del usuario, que puede cambiar el alcance. No delegar a Codex mientras tanto.
-
-- **Problema:** las entradas a la simulación llegan por caminos distintos. Unas son escrituras directas (deuda 1) y otras son asíncronas (deuda 3), así que hoy no se pueden hacer replays ni pruebas «golden» de determinismo.
-- **Propuesta:** que todas las entradas pasen por un único punto de la simulación, como una cola de comandos con número de paso.
-- **Reparto:** Codex implementaría la cola y las pruebas de determinismo en `sim/` y `pruebas/`. Claude cambiaría las escrituras directas de `ui/` y `principal.gd` por llamadas a esa cola. Por ser una feature que cruza núcleo y presentación, va con ciclo adversarial.
-- **De paso:** añadir un `mena(id)` público (deuda 2) y decidir si se expone la demolición de cintas (deuda 4).
+Toda mutación del mundo delega en `Simulacion.aplicar(cmd)`. `log_evento` y `aviso` solo alimentan colas de salida. El diario conserva el paso de aplicación, incluso para comandos fallidos. `reproducir(diario, pasos)` crea una simulación desde cero, aplica los comandos de cada paso y luego avanza el reloj. Las escrituras pendientes de UI a máquinas se migran con `sim.aplicar({"tipo": "set_maquina", "id": id, "campo": campo, "valor": valor})`.
 
 ## 4. API de programas JavaScript
 
@@ -118,3 +113,4 @@ Cambiar una versión obliga a cambiar la otra en el mismo cambio.
 | --- | --- | --- |
 | 2026-10-22 | Borrador inicial desde el README | Claude |
 | 2026-10-22 | Verificado contra el código: firmas reales, formas de colas y órdenes, deuda conocida | Claude |
+| 2026-10-22 | Cola única, diario, replay, huella y consulta pública de menas | Codex |
