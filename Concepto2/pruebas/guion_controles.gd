@@ -220,5 +220,19 @@ func _process(delta: float) -> void:
 			if t > 9.9:
 				var r1 := sim.robots[0]
 				_comprobar(sim.maquinas["FUN-01"].producidos > 2 or r1.pc >= 2, "R1 ejecutó su lista (pc=%d, FUN-01 producidos=%d)" % [r1.pc, sim.maquinas["FUN-01"].producidos])
+				# Atajos de máquina: pasan por la cola de comandos de la simulación.
+				p.velocidad = 1.0
+				_clic(_pantalla(27.5, 61.5, 0.8))
+				paso += 1
+		21:
+			if t > 10.2:
+				_comprobar(c.sel_maquina == "FUN-01", "clic izquierdo selecciona FUN-01 (sel=%s)" % c.sel_maquina)
+				_tecla(KEY_Z)
+				paso += 1
+		22:
+			if t > 10.4:
+				var ultimo: Dictionary = sim.diario.back().cmd if not sim.diario.is_empty() else {}
+				_comprobar(sim.maquinas["FUN-01"].pausada and ultimo.get("tipo") == "set_maquina" and ultimo.get("campo") == "pausada",
+					"Z pausa FUN-01 con un comando del diario (último: %s)" % [ultimo])
 				print("RESULTADO: %d fallos" % fallos)
 				get_tree().quit()

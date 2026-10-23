@@ -84,14 +84,13 @@ Valores de `resultado` que devuelve la simulación: `ok`, `viaje_vacio`, `derram
 
 ## Deuda conocida
 
-1. **Pendiente de migrar en la UI (Claude):** `control_rts.gd` escribe `m.pausada` y `m.turno_diurno`; `hud.gd` escribe `m.receta`, `m.salida_cinta` y `m.envio_auto`, y consulta `sim._mena(id)`. Los comandos `set_maquina` y `sim.mena(id)` ya están disponibles.
-2. `editor_programa.gd` escribe `codigo` y `linea_error`, estado de presentación excluido del diario.
-3. El paso de llegada de respuestas asíncronas depende del servicio/base en vivo; queda registrado para replay.
-4. `sim.quitar_cinta(c)` existe, pero ninguna parte de la UI la llama.
+1. `editor_programa.gd` escribe `codigo` y `linea_error`, estado de presentación excluido del diario.
+2. El paso de llegada de respuestas asíncronas depende del servicio/base en vivo; queda registrado para replay.
+3. `sim.quitar_cinta(c)` existe, pero ninguna parte de la UI la llama.
 
 ## Cola de comandos única (hecho)
 
-Toda mutación del mundo delega en `Simulacion.aplicar(cmd)`. `log_evento` y `aviso` solo alimentan colas de salida. El diario conserva el paso de aplicación, incluso para comandos fallidos. `reproducir(diario, pasos)` crea una simulación desde cero, aplica los comandos de cada paso y luego avanza el reloj. Las escrituras pendientes de UI a máquinas se migran con `sim.aplicar({"tipo": "set_maquina", "id": id, "campo": campo, "valor": valor})`.
+Toda mutación del mundo delega en `Simulacion.aplicar(cmd)`. `log_evento` y `aviso` solo alimentan colas de salida. El diario conserva el paso de aplicación, incluso para comandos fallidos. `reproducir(diario, pasos)` crea una simulación desde cero, aplica los comandos de cada paso y luego avanza el reloj. La UI ya no escribe campos de máquina: usa `sim.aplicar({"tipo": "set_maquina", "id": id, "campo": campo, "valor": valor})` (`control_rts.gd`: pausa y turno; `hud.gd`: receta, salida a cinta y envío automático) y `sim.mena(id)`.
 
 ## 4. API de programas JavaScript
 
@@ -114,3 +113,4 @@ Cambiar una versión obliga a cambiar la otra en el mismo cambio.
 | 2026-10-22 | Borrador inicial desde el README | Claude |
 | 2026-10-22 | Verificado contra el código: firmas reales, formas de colas y órdenes, deuda conocida | Claude |
 | 2026-10-22 | Cola única, diario, replay, huella y consulta pública de menas | Codex |
+| 2026-10-22 | La UI migra sus escrituras de máquina a `set_maquina` y usa `mena(id)` | Claude |

@@ -277,11 +277,11 @@ func _tecla(k: InputEventKey) -> bool:
 		var m: Maquina = sim.maquinas[sel_maquina]
 		match tecla:
 			KEY_Z:
-				m.pausada = not m.pausada
+				sim.aplicar({"tipo": "set_maquina", "id": m.id, "campo": "pausada", "valor": not m.pausada})
 				seleccion_cambiada.emit()
 				return true
 			KEY_T:
-				m.turno_diurno = not m.turno_diurno
+				sim.aplicar({"tipo": "set_maquina", "id": m.id, "campo": "turno_diurno", "valor": not m.turno_diurno})
 				seleccion_cambiada.emit()
 				return true
 			KEY_V:

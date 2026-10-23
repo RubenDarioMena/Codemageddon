@@ -188,14 +188,16 @@ cd Concepto2
 G=/Applications/Godot.app/Contents/MacOS/Godot
 $G --headless --path . -s pruebas/prueba_sim.gd       # línea inicial + consultas
 $G --headless --path . -s pruebas/prueba_larga.gd     # 3 días: ventas, quejas, bloqueo, ordenanza, auditoría
-$G --path . -- --guion=res://pruebas/guion_controles.gd   # 14 comprobaciones de controles por eventos reales
+$G --headless --path . -s pruebas/prueba_determinismo.gd  # diario de comandos: dos corridas, replay y huella
+$G --path . -- --guion=res://pruebas/guion_controles.gd   # 16 comprobaciones de controles por eventos reales
 $G --path . -- --guion=res://pruebas/guion_programas.gd   # 10 comprobaciones de JS + PostgreSQL de punta a punta
 $G --path . -- --guion=res://pruebas/guion_capturas.gd    # capturas en pruebas/capturas/
 ```
 
 Último resultado (22 de octubre de 2026):
 
-- `guion_controles`: 0 fallos en 14 comprobaciones (incluye arrastre con el clic derecho y flechas de puertos).
+- `guion_controles`: 0 fallos en 16 comprobaciones (incluye arrastre con el clic derecho, flechas de puertos y atajos de máquina que pasan por la cola de comandos).
+- `prueba_determinismo`: 0 fallos. 13 comandos repartidos en 6000 pasos, 26 puntos de control, replay del diario (también serializado) y alcance de la huella.
 - `guion_programas`: 0 fallos en 10 comprobaciones:
   - Postgres 18.3.
   - Un programa JS que entrega cobre.

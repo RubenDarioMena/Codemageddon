@@ -475,7 +475,7 @@ func _render_info() -> void:
 	elif c.sel_maquina != "" and sim.maquinas.has(c.sel_maquina):
 		t = _info_maquina(sim.maquinas[c.sel_maquina])
 	elif c.sel_otro.get("tipo", "") == "mena":
-		var m := sim._mena(c.sel_otro.id)
+		var m := sim.mena(c.sel_otro.id)
 		t = "[color=#ee9550][b]%s[/b][/color] · mena de cobre natural\n%d / %d unidades\n\n[color=#7f95a3]Solo un Explorador T2 tiene pala para minar. Extraer es más barato que comprar, pero hay que llegar hasta aquí.[/color]" % [m.id, m.cantidad, m.max]
 	elif c.sel_otro.get("tipo", "") == "camion":
 		for cam in sim.camiones:
@@ -627,7 +627,7 @@ func _reconstruir_comandos() -> void:
 				var b := Estilo.boton(("● " if m.receta == clave else "") + Cfg.ROBOTS[rec.robot].nombre, "",
 					"%d circuitos + %d lingotes · %.0f s" % [rec.entra.circuito, rec.entra.lingote, rec.t])
 				b.pressed.connect(func():
-					m.receta = clave
+					sim.aplicar({"tipo": "set_maquina", "id": m.id, "campo": "receta", "valor": clave})
 					_reconstruir_comandos())
 				comandos.add_child(b)
 		if m.tipo == "recepcion":
@@ -635,7 +635,7 @@ func _reconstruir_comandos() -> void:
 				var b := Estilo.boton(("● " if m.salida_cinta == mat else "") + "A cinta: " + mat, "",
 					"Qué material empuja la recepción a una cinta conectada a su salida.")
 				b.pressed.connect(func():
-					m.salida_cinta = mat
+					sim.aplicar({"tipo": "set_maquina", "id": m.id, "campo": "salida_cinta", "valor": mat})
 					_reconstruir_comandos())
 				comandos.add_child(b)
 		if m.tipo == "despacho":
@@ -644,7 +644,7 @@ func _reconstruir_comandos() -> void:
 			comandos.add_child(bv)
 			var ba := Estilo.boton("Envío auto: %s" % ("sí" if m.envio_auto else "no"), "", "Sale solo con 10 o más unidades.")
 			ba.pressed.connect(func():
-				m.envio_auto = not m.envio_auto
+				sim.aplicar({"tipo": "set_maquina", "id": m.id, "campo": "envio_auto", "valor": not m.envio_auto})
 				_reconstruir_comandos())
 			comandos.add_child(ba)
 		if m.tipo != "recepcion":
