@@ -111,7 +111,8 @@ El jugador no ve las utilidades: ve la tabla `quejas` y tiene que **descubrir la
 | Ratón | |
 | --- | --- |
 | Clic izquierdo | Seleccionar. Arrastrar = caja; doble clic = todos los del mismo nivel en pantalla; Shift = añadir |
-| Clic derecho | Orden según el objetivo: suelo = ir; máquina = recoger o entregar (según lleve carga); pila de REC-01 = el material de ese lado del andén; mena = minar; máquina averiada = reparar; material caído = recoger |
+| Clic derecho | Orden según el objetivo, al soltar: suelo = ir; máquina = recoger o entregar (según lleve carga); pila de REC-01 = el material de ese lado del andén; mena = minar; máquina averiada = reparar; material caído = recoger |
+| **Arrastrar con el clic derecho** | **Desplazar la cámara**: el suelo sigue al cursor y no se da ninguna orden. También en modo construcción |
 | Shift + clic derecho | Encolar (la lista es el programa del robot) |
 | Rueda | Zoom en pasos enteros de píxel por metro, hacia el cursor |
 | **Rueda pulsada** | **Orbitar** (giro libre que se ajusta a 45° al soltar, para que la luz dibujada de los sprites no quede en ángulos arbitrarios) |
@@ -131,7 +132,7 @@ El jugador no ve las utilidades: ve la tabla `quejas` y tiene que **descubrir la
 | J | Editor del programa JavaScript del robot seleccionado |
 | F1 · F2 | Ayuda · consola SQL |
 
-Las **cintas** entregan material en la casilla de **entrada** de una máquina (lado cian) y reciben de su **salida** (lado ámbar). El fantasma de construcción muestra los dos puertos. El arrastre traza una L: el eje con más recorrido va primero.
+Las **cintas** entregan material en la **entrada** de una máquina y reciben de su **salida**. Cada máquina lo indica con flechas flotantes: **verde** = entrada (apunta a la máquina), **roja** = salida (apunta hacia fuera). Parpadean mientras ninguna cinta las conecta y quedan tenues cuando ya hay una. El fantasma de construcción muestra las mismas flechas. El arrastre de la cinta traza una L: el eje con más recorrido va primero.
 
 ![Órdenes encoladas](docs/capturas/10_orden_encolada.jpg)
 
@@ -187,14 +188,16 @@ cd Concepto2
 G=/Applications/Godot.app/Contents/MacOS/Godot
 $G --headless --path . -s pruebas/prueba_sim.gd       # línea inicial + consultas
 $G --headless --path . -s pruebas/prueba_larga.gd     # 3 días: ventas, quejas, bloqueo, ordenanza, auditoría
-$G --path . -- --guion=res://pruebas/guion_controles.gd   # 11 comprobaciones de controles por eventos reales
+$G --headless --path . -s pruebas/prueba_determinismo.gd  # diario de comandos: dos corridas, replay y huella
+$G --path . -- --guion=res://pruebas/guion_controles.gd   # 16 comprobaciones de controles por eventos reales
 $G --path . -- --guion=res://pruebas/guion_programas.gd   # 10 comprobaciones de JS + PostgreSQL de punta a punta
 $G --path . -- --guion=res://pruebas/guion_capturas.gd    # capturas en pruebas/capturas/
 ```
 
 Último resultado (22 de octubre de 2026):
 
-- `guion_controles`: 0 fallos en 11 comprobaciones.
+- `guion_controles`: 0 fallos en 16 comprobaciones (incluye arrastre con el clic derecho, flechas de puertos y atajos de máquina que pasan por la cola de comandos).
+- `prueba_determinismo`: 0 fallos. 13 comandos repartidos en 6000 pasos, 26 puntos de control, replay del diario (también serializado) y alcance de la huella.
 - `guion_programas`: 0 fallos en 10 comprobaciones:
   - Postgres 18.3.
   - Un programa JS que entrega cobre.

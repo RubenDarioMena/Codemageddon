@@ -124,13 +124,15 @@ func _process(delta: float) -> void:
 				paso += 1
 		7:
 			if t > marca + 1.0:
+				# Clic completo: la orden del clic derecho se da al soltar (arrastrar desplaza la cámara).
 				var pos: Vector2 = p.cam.a_pantalla(Vector3(30.5, 0.1, 70.5))
-				var e := InputEventMouseButton.new()
-				e.position = pos
-				e.button_index = MOUSE_BUTTON_RIGHT
-				e.pressed = true
 				Input.warp_mouse(pos)
-				Input.parse_input_event(e)
+				for pulsado in [true, false]:
+					var e := InputEventMouseButton.new()
+					e.position = pos
+					e.button_index = MOUSE_BUTTON_RIGHT
+					e.pressed = pulsado
+					Input.parse_input_event(e)
 				marca = t
 				paso += 1
 		8:

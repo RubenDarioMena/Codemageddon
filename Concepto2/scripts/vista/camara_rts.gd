@@ -1,9 +1,10 @@
 class_name CamaraRTS
 extends Node3D
-## Cámara ortográfica de RTS. Flechas/WASD y bordes de pantalla desplazan, la rueda hace zoom por
-## niveles enteros de píxeles por metro (el pixel art no se deforma), y la rueda PULSADA orbita:
-## giro libre mientras arrastras, ajuste a 8 direcciones (45°) al soltar, para que la luz dibujada
-## de los sprites no quede en ángulos arbitrarios. Q/E giran 45°.
+## Cámara ortográfica de RTS. Flechas/WASD, bordes de pantalla y arrastre con el clic derecho
+## (lo gestiona ControlRTS con `arrastrar`) desplazan, la rueda hace zoom por niveles enteros de
+## píxeles por metro (el pixel art no se deforma), y la rueda PULSADA orbita: giro libre mientras
+## arrastras, ajuste a 8 direcciones (45°) al soltar, para que la luz dibujada de los sprites no
+## quede en ángulos arbitrarios. Q/E giran 45°.
 
 const NIVELES_PPM := [6, 8, 12, 16, 24, 32, 48]
 const BORDE := 6.0
@@ -15,6 +16,7 @@ var yaw_obj := 0.0
 var pitch := deg_to_rad(52.0)
 var nivel := 4
 var orbitando := false
+var desplazando := false         # arrastre con el clic derecho en curso (no se desplaza por bordes)
 var teclas_activas := true       # el control lo apaga mientras se escribe o en el menú de construcción
 var rotacion_con_qe := true
 var _size := 0.0
@@ -58,7 +60,7 @@ func _process(delta: float) -> void:
 	var vp := get_viewport()
 	var raton := vp.get_mouse_position()
 	var tam := vp.get_visible_rect().size
-	if _raton_dentro and Rect2(Vector2.ZERO, tam).has_point(raton) and not orbitando:
+	if _raton_dentro and Rect2(Vector2.ZERO, tam).has_point(raton) and not orbitando and not desplazando:
 		if raton.x < BORDE:
 			mover.x -= 1
 		elif raton.x > tam.x - BORDE:
@@ -135,6 +137,16 @@ func _zoom(paso: int, cursor: Vector2) -> void:
 
 func centrar(p: Vector3) -> void:
 	objetivo = Vector3(p.x, 0, p.z)
+
+
+## Arrastre del mapa: el punto del suelo que estaba bajo `desde` queda bajo `hasta`. En proyección
+## ortográfica la diferencia no depende de la posición de la cámara, así que vale aunque varios
+## movimientos lleguen en el mismo frame, antes de que `_aplicar` mueva la cámara.
+func arrastrar(desde: Vector2, hasta: Vector2) -> void:
+	var a := rayo_suelo(desde)
+	var b := rayo_suelo(hasta)
+	if a != Vector3.INF and b != Vector3.INF:
+		objetivo += a - b
 
 
 ## Punto del suelo (y = 0) bajo una posición de pantalla.
