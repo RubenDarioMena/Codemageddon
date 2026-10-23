@@ -89,7 +89,14 @@ Valores de `resultado` que devuelve la simulación: `ok`, `viaje_vacio`, `derram
 3. **Entradas asíncronas.** Las órdenes de programas JS (`orden_programa`) y el resultado de la auditoría (`resultado_auditoria`) llegan cuando responde el servicio o la base, así que el paso en que se aplican depende del frame. Con programas o auditorías activos, mismo seed + mismas acciones no garantiza el mismo estado.
 4. `sim.quitar_cinta(c)` existe, pero ninguna parte de la UI la llama: las cintas terminadas no se pueden demoler.
 
-**Decisión pendiente.** Para tener replays y pruebas «golden» de determinismo, todas las entradas (puntos 1 y 3 incluidos) deberían entrar por un único punto de la simulación, como una cola de comandos con número de paso. Es trabajo de Codex. La presentación cambiaría sus escrituras directas por llamadas a ese punto.
+## Pendiente: cola de comandos única (aplazado)
+
+> **Estado: aplazado.** No se implementa hasta recibir otra ronda de feedback del usuario, que puede cambiar el alcance. No delegar a Codex mientras tanto.
+
+- **Problema:** las entradas a la simulación llegan por caminos distintos. Unas son escrituras directas (deuda 1) y otras son asíncronas (deuda 3), así que hoy no se pueden hacer replays ni pruebas «golden» de determinismo.
+- **Propuesta:** que todas las entradas pasen por un único punto de la simulación, como una cola de comandos con número de paso.
+- **Reparto:** Codex implementaría la cola y las pruebas de determinismo en `sim/` y `pruebas/`. Claude cambiaría las escrituras directas de `ui/` y `principal.gd` por llamadas a esa cola. Por ser una feature que cruza núcleo y presentación, va con ciclo adversarial.
+- **De paso:** añadir un `mena(id)` público (deuda 2) y decidir si se expone la demolición de cintas (deuda 4).
 
 ## 4. API de programas JavaScript
 
