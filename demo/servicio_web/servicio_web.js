@@ -223,6 +223,8 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
   const w = { worker, url, latido: Date.now(), ejecucion }
   workers.set(robot, w)
   worker.onmessage = e => {
+    // Mismo aislamiento de ejecuciones que en el servicio de escritorio.
+    if (workers.get(robot) !== w) return
     const m = e.data
     w.latido = Date.now()
     m.ejecucion = ejecucion
@@ -231,6 +233,7 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
         break
       case 'sql':
         enCola(async () => {
+          if (workers.get(robot) !== w) return
           try {
             const r = m.params?.length ? await db.query(m.sql, m.params) : (await db.exec(m.sql)).at(-1) ?? { rows: [] }
             worker.postMessage(JSON.parse(json({ op: 'sql_res', qid: m.qid, filas: r.rows })))
@@ -250,6 +253,7 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
   // Errores de sintaxis: el navegador los informa con la línea del blob.
   worker.onerror = e => {
     e.preventDefault()
+    if (workers.get(robot) !== w) return
     const linea = e.lineno > desplazamiento ? e.lineno - desplazamiento : 0
     enviar({ op: 'error', robot, ejecucion, mensaje: e.message.replace(/^Uncaught /, ''), linea })
     if (workers.get(robot) === w) { workers.delete(robot); worker.terminate(); URL.revokeObjectURL(url) }
