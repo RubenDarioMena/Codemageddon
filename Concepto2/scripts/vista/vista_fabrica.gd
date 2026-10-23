@@ -12,6 +12,12 @@ const ICONO_ESTADO := {
 	"sin_insumo": "⚠ sin insumo", "salida_llena": "■ salida llena", "pausada": "❚❚ pausada",
 	"turno": "☾ turno diurno", "averiada": "✖ averiada",
 }
+## Flechas de puertos: por dónde entra (verde, apunta a la máquina) y sale (roja, apunta hacia fuera)
+## el material de las cintas. Parpadean hasta que una cinta las conecta.
+const COLOR_ENTRADA := Color("3fe08a")
+const COLOR_SALIDA := Color("ff5a5a")
+const ALTURA_FLECHA := 0.7
+const ESCALA_FLECHA := 1.2
 
 var sim: Simulacion
 var escenas := {}
@@ -21,6 +27,9 @@ var mm_cintas: MultiMeshInstance3D
 var mm_items: MultiMeshInstance3D
 var mm_suelo: MultiMeshInstance3D
 var mm_pilas: MultiMeshInstance3D
+var mm_puertos: MultiMeshInstance3D
+var mm_puertos_fantasma: MultiMeshInstance3D
+var fantasma: Maquina      # máquina en colocación (la pone ControlRTS); null = ninguna
 var mat_cinta: ShaderMaterial
 var mat_obra: StandardMaterial3D
 var piquete: Node3D
@@ -56,6 +65,17 @@ func construir(p_sim: Simulacion, p_tex_humo: Texture2D) -> void:
 	pila.size = Vector3(0.34, 0.28, 0.34)
 	mm_suelo = _mmi(pila, mat_item, false, true)
 	mm_pilas = _mmi(pila, mat_item, false, true)
+
+	# Las flechas son interfaz sobre el mundo: sin luz y siempre visibles, como las etiquetas.
+	var mat_flecha := StandardMaterial3D.new()
+	mat_flecha.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat_flecha.vertex_color_use_as_albedo = true
+	mat_flecha.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_flecha.no_depth_test = true
+	mat_flecha.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var flecha := malla_flecha()
+	mm_puertos = _mmi(flecha, mat_flecha, false, true)
+	mm_puertos_fantasma = _mmi(flecha, mat_flecha, false, true)
 	_crear_piquete()
 
 
@@ -88,6 +108,7 @@ func actualizar(alfa: float, velocidad: float) -> void:
 	_actualizar_items(alfa)
 	_actualizar_suelo()
 	_actualizar_camiones(alfa)
+	_actualizar_puertos()
 	piquete.visible = sim.ciudad.bloqueada()
 	if piquete.visible:
 		for k in piquete.get_child_count():
@@ -204,6 +225,84 @@ func _humo(pos: Vector3) -> CPUParticles3D:
 	p.scale_amount_curve = curva
 	p.emitting = false
 	return p
+
+
+## Flecha plana que apunta a +X, con borde oscuro: el color de la instancia tiñe el relleno
+## (vértices blancos) y el borde (vértices negros) sigue negro. Sin prueba de profundidad, los
+## triángulos se pintan en orden: primero el borde, encima el relleno.
+static func malla_flecha() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# [color, cola, cuello, medio grosor del asta, media ala de la punta, punta]
+	for capa in [[Color.BLACK, -0.42, -0.02, 0.15, 0.36, 0.52], [Color.WHITE, -0.36, 0.05, 0.09, 0.27, 0.42]]:
+		var cola: float = capa[1]
+		var cuello: float = capa[2]
+		var g: float = capa[3]
+		var ala: float = capa[4]
+		st.set_color(capa[0])
+		for v in [Vector3(cola, 0, -g), Vector3(cuello, 0, -g), Vector3(cuello, 0, g),
+				Vector3(cola, 0, -g), Vector3(cuello, 0, g), Vector3(cola, 0, g),
+				Vector3(cuello, 0, -ala), Vector3(capa[5], 0, 0), Vector3(cuello, 0, ala)]:
+			st.add_vertex(v)
+	return st.commit()
+
+
+## Puertos de cinta de una máquina: [casilla donde va la flecha, dirección del flujo, es_entrada].
+## La flecha de entrada va en la casilla exterior donde termina la cinta que la alimenta (justo antes
+## de `celda_entrada()`); la de salida, en `celda_salida()`. Solo tiene entrada quien acepta material
+## y solo tiene salida quien lo empuja a una cinta (la fábrica de robots saca robots, no material).
+static func puertos(m: Maquina) -> Array:
+	var d := Cfg.dir_vec(m.rot)
+	var res := []
+	if m.def.has("cap_entrada"):
+		res.append([m.celda_entrada() - d, d, true])
+	if m.def.has("cap_salida"):
+		res.append([m.celda_salida(), d, false])
+	return res
+
+
+func _actualizar_puertos() -> void:
+	var t := Time.get_ticks_msec() / 1000.0
+	var lista := []
+	for m: Maquina in sim.maquinas.values():
+		for pu in puertos(m):
+			lista.append([pu, _conectado(m, pu)])
+	_escribir_flechas(mm_puertos.multimesh, lista, t)
+	var fl := []
+	if fantasma != null:
+		for pu in puertos(fantasma):
+			fl.append([pu, false])
+	_escribir_flechas(mm_puertos_fantasma.multimesh, fl, t)
+
+
+## Un puerto está conectado si hay una cinta en su casilla que lleva el material en su sentido.
+func _conectado(m: Maquina, pu: Array) -> bool:
+	var b = sim.cintas.celdas.get(pu[0])
+	if b == null:
+		return false
+	return b.dir == m.rot if pu[2] else b.dir != posmod(m.rot + 2, 4)
+
+
+## Las flechas sin conectar flotan hacia el sentido del flujo y parpadean; las conectadas se
+## quedan quietas y tenues, para que una fábrica montada no se llene de avisos.
+func _escribir_flechas(mm: MultiMesh, lista: Array, t: float) -> void:
+	if mm.instance_count < lista.size():
+		mm.instance_count = lista.size() + 8
+	mm.visible_instance_count = lista.size()
+	var vaiven := sin(t * 5.0) * 0.12
+	var pulso := 0.35 + 0.65 * (0.5 + 0.5 * sin(t * 6.0))
+	for k in lista.size():
+		var pu: Array = lista[k][0]
+		var conectado: bool = lista[k][1]
+		var c: Vector2i = pu[0]
+		var d: Vector2i = pu[1]
+		var dir := Vector3(d.x, 0, d.y)
+		var base := Basis(Vector3.UP, atan2(-float(d.y), float(d.x))).scaled(Vector3.ONE * ESCALA_FLECHA)
+		var pos := Vector3(c.x + 0.5, ALTURA_FLECHA, c.y + 0.5) + dir * (0.0 if conectado else vaiven)
+		mm.set_instance_transform(k, Transform3D(base, pos))
+		var col: Color = COLOR_ENTRADA if pu[2] else COLOR_SALIDA
+		col.a = 0.45 if conectado else pulso
+		mm.set_instance_color(k, col)
 
 
 func _pilas_recepcion(m: Maquina) -> void:

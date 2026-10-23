@@ -255,7 +255,9 @@ Eres la IA de una empresa nueva: un terreno, ₵ 1200, dos mulas sin chip y una 
   [b]Clic izq.[/b] seleccionar · [b]arrastrar[/b] caja · [b]doble clic[/b] todos los del mismo nivel · [b]Shift[/b] añadir
   [b]Clic der.[/b] ordenar según el objetivo: suelo = ir · máquina = recoger o entregar · mena = minar · averiada = reparar
   [b]Shift + clic der.[/b] encolar órdenes: tu lista de clics [i]es[/i] el programa del robot (míralo en el panel)
-  [b]Rueda[/b] zoom · [b]rueda pulsada[/b] orbitar (se ajusta a 45° al soltar) · bordes/flechas/WASD desplazar
+  [b]Arrastrar con el clic der.[/b] desplazar la cámara (no da orden) · también bordes/flechas/WASD
+  [b]Rueda[/b] zoom · [b]rueda pulsada[/b] orbitar (se ajusta a 45° al soltar)
+  Flechas sobre las máquinas: [color=#3fe08a]verde[/color] = entrada · [color=#ff5a5a]roja[/color] = salida (parpadean hasta que una cinta las conecta)
 
 [color=#ffb547]Teclado[/color]
   [b]B[/b] construir → [b]Q[/b] cinta · [b]W[/b] fundidora · [b]E[/b] ensambladora · [b]A[/b] fábrica de robots · [b]S[/b] despacho · [b]D[/b] servidor

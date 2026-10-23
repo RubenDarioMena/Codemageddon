@@ -3,6 +3,7 @@ extends Node3D
 ## Entrada estilo Age of Empires II:
 ##   clic izquierdo = seleccionar (arrastrar = caja, doble clic = todos los del mismo nivel en pantalla,
 ##   Shift = añadir). Clic derecho = orden según el objetivo (mover, recoger, entregar, minar, reparar);
+##   se da al soltar: arrastrar con el derecho desplaza la cámara y no da orden.
 ##   Shift + clic derecho = encolar. Ctrl+número = grupo; número = seleccionarlo (dos veces = centrar).
 ##   «.» = siguiente robot ocioso, H = la fábrica, Espacio = centrar en la selección.
 ##   B = menú de construcción (rejilla Q W E / A S D), R = girar, Shift = colocar varias, clic derecho/Esc = cancelar.
@@ -23,12 +24,15 @@ var tipo_colocar := ""
 var rot_colocar := 0
 var fantasma: Node3D
 var fantasma_mats: Array[StandardMaterial3D] = []
-var fantasma_puertos: Node3D
 var mm_previa: MultiMeshInstance3D
 var marcador: MeshInstance3D
 var capa: Control                 # dibuja la caja de selección
 var _presion := Vector2.INF
 var _arrastrando := false
+var _presion_der := Vector2.INF   # clic derecho pulsado en el mundo, pendiente de soltar
+var _shift_der := false
+var _desplazando := false         # el clic derecho pasó a ser un arrastre de cámara
+var _ultimo_der := Vector2.ZERO
 var _cinta_inicio := Vector2i(-1, -1)
 var _ultimo_grupo := -1
 var _t_grupo := 0.0
@@ -102,9 +106,45 @@ func _process(delta: float) -> void:
 		_actualizar_previa_cinta(raton)
 	p.vrob.seleccion = sel_robots
 	capa.queue_redraw()
+	# Si el botón se soltó fuera de la ventana no llega el evento: se olvida el clic sin dar orden.
+	if _presion_der != Vector2.INF and not Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		_fin_derecho()
 
 
 # ================================================================ entrada
+
+## Un clic derecho que empezó en el mundo se sigue aquí, antes que la interfaz: el arrastre de
+## cámara no se corta al pasar sobre el HUD, y soltar encima de un panel también cuenta.
+func _input(e: InputEvent) -> void:
+	if _presion_der == Vector2.INF:
+		return
+	if e is InputEventMouseMotion:
+		if not _desplazando and e.position.distance_to(_presion_der) > 6.0:
+			_desplazando = true
+			_ultimo_der = _presion_der
+			cam.desplazando = true
+			Input.set_default_cursor_shape(Input.CURSOR_DRAG)
+		if _desplazando:
+			cam.arrastrar(_ultimo_der, e.position)
+			_ultimo_der = e.position
+			get_viewport().set_input_as_handled()
+	elif e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_RIGHT and not e.pressed:
+		if not _desplazando:
+			if modo in ["colocar", "cinta", "menu"]:
+				cancelar_modo()
+			else:
+				_orden(_presion_der, _shift_der)
+		_fin_derecho()
+		get_viewport().set_input_as_handled()
+
+
+func _fin_derecho() -> void:
+	_presion_der = Vector2.INF
+	if _desplazando:
+		_desplazando = false
+		cam.desplazando = false
+		Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton:
@@ -142,10 +182,9 @@ func _boton(b: InputEventMouseButton) -> void:
 			_arrastrando = false
 		get_viewport().set_input_as_handled()
 	elif b.button_index == MOUSE_BUTTON_RIGHT and b.pressed:
-		if modo in ["colocar", "cinta", "menu"]:
-			cancelar_modo()
-		else:
-			_orden(b.position, b.shift_pressed)
+		# La orden (o cancelar la construcción) espera a soltar: así se distingue del arrastre.
+		_presion_der = b.position
+		_shift_der = b.shift_pressed
 		get_viewport().set_input_as_handled()
 
 
@@ -491,27 +530,6 @@ func empezar_construccion(tipo: String) -> void:
 	fantasma_mats.append(mat)
 	for c in fantasma.find_children("*", "MeshInstance3D", true, false):
 		(c as MeshInstance3D).material_override = mat
-	# Flechas de puertos: entrada (cian) y salida (ámbar).
-	fantasma_puertos = Node3D.new()
-	for lado in [[-1, Color("59f0ff")], [1, Color("ffb547")]]:
-		var flecha := MeshInstance3D.new()
-		var cono := CylinderMesh.new()
-		cono.top_radius = 0.0
-		cono.bottom_radius = 0.28
-		cono.height = 0.6
-		flecha.mesh = cono
-		var mf := StandardMaterial3D.new()
-		mf.albedo_color = lado[1]
-		mf.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mf.no_depth_test = true
-		flecha.material_override = mf
-		flecha.rotation_degrees = Vector3(0, 0, -90)
-		var tam: Vector2i = Cfg.MAQUINAS[tipo].tam
-		flecha.position = Vector3(lado[0] * (tam.x * 0.5 + (0.7 if lado[0] < 0 else 0.4)), 0.5, 0)
-		fantasma_puertos.add_child(flecha)
-	if tipo in ["recepcion", "servidor"]:
-		fantasma_puertos.visible = false
-	fantasma.add_child(fantasma_puertos)
 	p.hud.mostrar_menu_construccion(false)
 
 
@@ -519,6 +537,7 @@ func cancelar_modo() -> void:
 	if fantasma:
 		fantasma.queue_free()
 		fantasma = null
+	p.vfab.fantasma = null
 	modo = "normal"
 	tipo_colocar = ""
 	_cinta_inicio = Vector2i(-1, -1)
@@ -540,6 +559,7 @@ func _actualizar_fantasma(raton: Vector2) -> void:
 	var celda := _celda_colocar(raton)
 	var m := Maquina.new("?", tipo_colocar, celda, rot_colocar)
 	fantasma.transform = VistaFabrica.transform_maquina(m)
+	p.vfab.fantasma = m   # sus flechas de puertos, iguales a las de las máquinas construidas
 	var err := sim.validar(tipo_colocar, celda, rot_colocar)
 	fantasma_mats[0].albedo_color = Color(0.3, 1.0, 0.5, 0.5) if err == "" else Color(1.0, 0.3, 0.3, 0.5)
 	p.hud.pista("%s · ₵ %d%s   [R girar · Shift varias · clic derecho cancelar]" % [
