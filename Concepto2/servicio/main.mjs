@@ -110,6 +110,8 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
   const w = { worker, latido: Date.now(), nivel, ejecucion }
   workers.set(robot, w)
   worker.on('message', async m => {
+    // Un worker terminado puede tener mensajes en tránsito después de un reset.
+    if (workers.get(robot) !== w) return
     w.latido = Date.now()
     m.ejecucion = ejecucion
     switch (m.op) {
@@ -117,6 +119,8 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
         break
       case 'sql':
         enCola(async () => {
+          // También se cancela SQL que esperaba turno cuando se detuvo el programa.
+          if (workers.get(robot) !== w) return
           try {
             const r = m.params?.length ? await db.query(m.sql, m.params) : (await db.exec(m.sql)).at(-1) ?? { rows: [] }
             worker.postMessage(JSON.parse(json({ op: 'sql_res', qid: m.qid, filas: r.rows })))
@@ -134,6 +138,7 @@ function ejecutar(robot, nivel, codigo, ejecucion) {
     }
   })
   worker.on('error', e => {
+    if (workers.get(robot) !== w) return
     enviar({ op: 'error', robot, ejecucion, mensaje: e.message, linea: 0 })
     if (workers.get(robot) === w) workers.delete(robot)
     enviar({ op: 'fin', robot, ejecucion })

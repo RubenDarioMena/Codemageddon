@@ -21,6 +21,7 @@ var averiada := false
 var producidos := 0
 var salida_cinta := "cobre"  # solo recepción: qué material manda a la cinta
 var envio_auto := true       # solo despacho
+var dev_tiempo := 1.0        # multiplicador de duración por instancia, solo laboratorio
 
 
 func _init(p_id: String, p_tipo: String, p_celda: Vector2i, p_rot: int) -> void:

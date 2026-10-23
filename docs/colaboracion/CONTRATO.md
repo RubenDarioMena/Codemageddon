@@ -74,7 +74,7 @@ Son **llamadas síncronas a métodos de `Simulacion`**, hechas entre pasos desde
 | `resultado_auditoria(filas)` | Aplica la multa de la auditoría nocturna |
 | `aplicar(cmd)` | Entrada única; admite `set_maquina` (`pausada`, `turno_diurno`, `receta`, `salida_cinta`, `envio_auto`), ciclo de programas y respuestas asíncronas |
 | `mena(id)` | Consulta pública por ID de mena |
-| `reproducir(diario, pasos)`, `huella()`, `huella_detalle()` | Replay desde cero, resumen hash y detalle explícito de la huella del mundo |
+| `reproducir(diario, pasos, desarrollo=false)`, `huella()`, `huella_detalle()` | Replay desde cero, resumen hash y detalle explícito de la huella del mundo |
 
 `codigo`, `consola`, `linea` y `linea_error` son presentación y quedan fuera del diario. El paso de llegada de órdenes JS y auditorías depende del servicio/base en vivo; el diario permite reproducir exactamente la secuencia observada.
 
@@ -90,7 +90,7 @@ Valores de `resultado` que devuelve la simulación: `ok`, `viaje_vacio`, `derram
 
 ## Cola de comandos única (hecho)
 
-Toda mutación del mundo delega en `Simulacion.aplicar(cmd)`. `log_evento` y `aviso` solo alimentan colas de salida. El diario conserva el paso de aplicación, incluso para comandos fallidos. `reproducir(diario, pasos)` crea una simulación desde cero, aplica los comandos de cada paso y luego avanza el reloj. La UI ya no escribe campos de máquina: usa `sim.aplicar({"tipo": "set_maquina", "id": id, "campo": campo, "valor": valor})` (`control_rts.gd`: pausa y turno; `hud.gd`: receta, salida a cinta y envío automático) y `sim.mena(id)`.
+Toda mutación del mundo delega en `Simulacion.aplicar(cmd)`. `log_evento` y `aviso` solo alimentan colas de salida. El diario conserva el paso de aplicación, incluso para comandos fallidos. `reproducir(diario, pasos, desarrollo=false)` crea una simulación desde cero, aplica los comandos de cada paso y luego avanza el reloj. Incluye también las órdenes en la frontera final `paso == pasos`, que pueden darse con el mundo pausado. La UI ya no escribe campos de máquina: usa `sim.aplicar({"tipo": "set_maquina", "id": id, "campo": campo, "valor": valor})` (`control_rts.gd`: pausa y turno; `hud.gd`: receta, salida a cinta y envío automático) y `sim.mena(id)`.
 
 ## 4. API de programas JavaScript
 
@@ -106,6 +106,38 @@ Cambiar una versión obliga a cambiar la otra en el mismo cambio.
 
 `scripts/config.gd` (`Cfg`) contiene las constantes de diseño y balance: `HZ`, `SEG_POR_HORA` (12,5 s; un día dura 5 min a ×1), `MAQUINAS`, `ROBOTS`, `PEDIDOS`, `DISTRITOS`, rutas de camión y tiempos. Lo leen ambos lados y cambiarlo es zona compartida. Los parámetros puramente visuales (paletas, densidad de flora, tramado) viven en la capa de vista, no en `config.gd`.
 
+## 6. Laboratorio de desarrollo
+
+Se activa en compilación de depuración o con `--dev`. `Simulacion.new(desarrollo=false)` conserva el juego normal por defecto; los comandos `dev_*` se rechazan sin mutar el mundo si no se habilita desarrollo. Todos los intentos quedan en el diario. El panel se abre con F12 y solo invoca el controlador `scripts/servicio/devtools.gd`; las operaciones físicas pasan por `sim.aplicar()`.
+
+Estado legible adicional: `sim.desarrollo`, `sim.dev_sistemas` (`ciudad`, `produccion`, `robots`, `logistica`, booleanos) y `sim.dev_ajustes` (overrides por clave). Cada máquina/robot de desarrollo tiene una copia propia de su definición; no se modifican las constantes `Cfg`. `Maquina.dev_tiempo` es un multiplicador individual de duración, que se combina con `maquinas.tiempo`. La huella de desarrollo incorpora sistemas, ajustes y definiciones individuales.
+
+| Comando | Campos / efecto |
+| --- | --- |
+| `dev_dinero` | `valor`: presupuesto absoluto |
+| `dev_reloj`, `dev_semilla` | `{dia,hora}` y `{valor}` respectivamente; solo antes del primer paso. Preparan el inicio sin simular historia |
+| `dev_sistemas` | `{sistema,activo}`; congela independientemente el sistema conservando su estado |
+| `dev_robot` | `{nivel,celda,cantidad}`; coloca unidades del catálogo en posiciones libres cercanas |
+| `dev_robot_estado` | `{id,celda?,carga?,cantidad?,auto?,vel?,cap?}`; rechaza edición de un worker activo y carga superior a capacidad |
+| `dev_ordenes` | `{id,ordenes,repetir}`; prepara una secuencia válida completa para un robot sin worker activo |
+| `dev_maquina` | `{maquina,celda,rot}`; crea terminada con huella validada |
+| `dev_maquina_estado` | `{id,entrada?,salida?,progreso?,obra?,averiada?,pausada?,turno_diurno?,receta?,envio_auto?,salida_cinta?,tiempo?}`; inventarios absolutos por material, progreso 0 incluido a 1 excluido |
+| `dev_ciudad` | `{distrito?,opinion?,quejas_nocturnas?,ordenanza?,bloqueo_horas?}`; sin distrito la opinión se aplica a todos |
+| `dev_material`, `dev_mena` | Pila `{celda,material,cantidad}` / reserva `{id,cantidad}` |
+| `dev_cinta` | `{celda,dir,material?,cantidad?}`; hasta dos objetos, no sobrescribe una cinta cargada |
+| `dev_pedido`, `dev_camion` | Pedido `{material,unidades,espera}` / camión `{clase,carga,estado,avance}` con avance normalizado 0–1 |
+| `dev_obras`, `dev_reparar` | Termina obras / repara todas las máquinas |
+| `dev_limpiar` | Booleanos `robots`, `maquinas`, `cintas`, `suelo`, `pedidos`, `camiones`; solo preparación antes del primer paso |
+| `dev_ajuste` | `{clave,valor}` validado según `DevComandos.ajustes()`; unidades, límites y valores originales legibles por la UI |
+
+El catálogo de ajustes incluye velocidad/capacidad por nivel de robot, velocidad de cintas, duración global de recetas, sensibilidad al ruido nocturno, umbral de ordenanza y multa. Los ajustes de nivel afectan a unidades existentes y futuras; para comparar dos individuos se usan `vel/cap` en `dev_robot_estado`. Cada comando valida antes de mutar la entidad; una edición de grupo desde el panel es una secuencia de comandos y comunica éxitos parciales.
+
+`DevEscenarios.crear(datos)` valida versión 1 y prepara una simulación aparte: `{version,nombre,base,inicio,sistemas,ajustes,comandos,eventos,pausa,programas}`. `base` es `inicial` o `vacio`; coordenadas JSON `[x,z]` se normalizan a `Vector2i`. Los eventos `{paso,cmd}` se ejecutan antes del siguiente paso, en orden estable; sus errores pausan. Un inicio nocturno no genera quejas previas. Los programas se asignan como código sin iniciar workers.
+
+El controlador integra pausas por evento o número de pasos, inspector, notas y métricas. Las ranuras `user://devtools/<nombre>.json` guardan diario binario sin objetos (base64), huella, escenario y agenda/pausas/notas/código. Incluyen comandos del último paso pausado y permiten hasta 24000 pasos; al restaurar se regeneran registro y proyecciones SQL, sin ejecutar de nuevo auditorías históricas. No restauran workers ni modificaciones SQL manuales. No se guarda con programas o auditorías pendientes. La restauración cambia la época de mensajes JS y descarta respuestas SQL del mundo anterior; `BaseDatos.reiniciar_dev(callback)` es la barrera de limpieza. La API JS pública conserva su forma en escritorio y web.
+
+Uso y ejemplos: [Concepto2/docs/DEVTOOLS.md](../../Concepto2/docs/DEVTOOLS.md).
+
 ## Registro de cambios del contrato
 
 | Fecha | Cambio | Autor |
@@ -114,3 +146,4 @@ Cambiar una versión obliga a cambiar la otra en el mismo cambio.
 | 2026-10-22 | Verificado contra el código: firmas reales, formas de colas y órdenes, deuda conocida | Claude |
 | 2026-10-22 | Cola única, diario, replay, huella y consulta pública de menas | Codex |
 | 2026-10-22 | La UI migra sus escrituras de máquina a `set_maquina` y usa `mena(id)` | Claude |
+| 2026-10-23 | Laboratorio: comandos de desarrollo, escenarios, ajustes individuales, ranuras y frontera final del replay | Codex |

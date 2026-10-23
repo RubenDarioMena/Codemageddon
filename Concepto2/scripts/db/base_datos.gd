@@ -22,6 +22,7 @@ var filas_eventos := 0
 var servicio: Servicio = null
 var db = null                  # SQLite (godot-sqlite) sin tipo estático: la extensión puede faltar
 var _esquema := ""
+var _generacion_dev := 0
 
 
 static func esquema(dialecto: String) -> String:
@@ -82,6 +83,14 @@ func crear_esquema() -> void:
 		return
 	for sentencia in dividir(_esquema):
 		db.query(sentencia)
+
+
+## Barrera SQL del laboratorio. Funciona con ambos motores y espera la cola de PostgreSQL.
+func reiniciar_dev(listo: Callable) -> void:
+	crear_esquema()
+	_generacion_dev += 1
+	filas_eventos = 0
+	consultar_luego("DELETE FROM eventos; DELETE FROM quejas; DELETE FROM maquinas; DELETE FROM robots;", listo)
 
 
 ## Inserta las colas de la simulación. Si el jugador borró una tabla, se recrea y se avisa.
@@ -154,7 +163,10 @@ func retener(capacidad: int) -> int:
 
 ## Versión asíncrona de `retener` (la que usa el juego: en la web nada puede bloquear).
 func retener_luego(capacidad: int, al_borrar: Callable) -> void:
+	var generacion := _generacion_dev
 	consultar_luego("SELECT COUNT(*) AS n FROM eventos", func(r):
+		if generacion != _generacion_dev:
+			return   # el COUNT pertenece a un mundo anterior; nunca borrar el nuevo
 		if not r.ok or r.filas.is_empty():
 			return
 		filas_eventos = int(r.filas[0].n)

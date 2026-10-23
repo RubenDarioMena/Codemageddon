@@ -106,6 +106,10 @@ El jugador no ve las utilidades: ve la tabla `quejas` y tiene que **descubrir la
 - **Sabotaje:** si el Norte protesta mucho, puede averiar una máquina, que se repara con un robot (clic derecho).
 - **Ordenanza:** con muchas quejas de ruido nocturno, el ayuntamiento impone el **silencio nocturno** (ataque político). Desde ese momento, cada mañana a las 06:00 **ejecuta una consulta SQL sobre tu tabla `eventos`** y multa a las máquinas ruidosas que produjeron de noche. La consulta se muestra en pantalla. Se cumple poniendo esas máquinas en turno «diurno» (tecla T). Borrar los eventos también evitaría la multa: es una tentación deliberada para una futura mecánica de integridad de datos.
 
+## Laboratorio de jugabilidad
+
+En desarrollo, **F12** abre las devtools: pausa y pasos, creación de entidades, inventarios, ajustes por tipo e instancia, escenarios JSON, eventos programados y ranuras reproducibles. Consulta [la guía y el formato](docs/DEVTOOLS.md). En una exportación de lanzamiento se habilitan explícitamente con `--dev`.
+
 ## Controles
 
 | Ratón | |

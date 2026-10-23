@@ -33,15 +33,21 @@ var _acum := {"humo": 0.0, "ruido": 0.0, "trafico": 0.0}
 var _hora_previa := -1
 var _estado_previo := {}
 var _ultimo_aviso := {}
+var desarrollo := false
+var dev_sistemas := {"ciudad": true, "produccion": true, "robots": true, "logistica": true}
+var dev_ajustes := {}
 
 
-func _init() -> void:
+func _init(p_desarrollo: bool = false) -> void:
+	desarrollo = p_desarrollo
 	rejilla = Rejilla.new(7)
 	_instalacion_inicial()
 
 
 func aplicar(cmd: Dictionary) -> String:
 	diario.append({"paso": n_paso, "cmd": cmd.duplicate(true)})
+	if str(cmd.get("tipo", "")).begins_with("dev_"):
+		return DevComandos.ejecutar(self, cmd)
 	var r: Robot
 	match str(cmd.get("tipo", "")):
 		"comprar":
@@ -133,14 +139,18 @@ func aplicar(cmd: Dictionary) -> String:
 	return ""
 
 
-static func reproducir(entradas: Array, pasos: int) -> Simulacion:
-	var s := Simulacion.new()
+static func reproducir(entradas: Array, pasos: int, p_desarrollo: bool = false) -> Simulacion:
+	var s := Simulacion.new(p_desarrollo)
 	var indice := 0
 	for k in pasos:
 		while indice < entradas.size() and int(entradas[indice].paso) == k:
 			s.aplicar(entradas[indice].cmd)
 			indice += 1
 		s.paso()
+	# También existen órdenes aplicadas con la partida pausada en el último paso.
+	while indice < entradas.size() and int(entradas[indice].paso) == pasos:
+		s.aplicar(entradas[indice].cmd)
+		indice += 1
 	return s
 
 
@@ -168,13 +178,24 @@ func huella_detalle() -> Dictionary:
 	var mn := []
 	for mena_dato in rejilla.menas:
 		mn.append({"id": mena_dato.id, "celda": mena_dato.celda, "cantidad": mena_dato.cantidad, "max": mena_dato.max})
-	return {"t": t, "n_paso": n_paso, "dinero": dinero, "maquinas": ms, "robots": rs,
+	var detalle := {"t": t, "n_paso": n_paso, "dinero": dinero, "maquinas": ms, "robots": rs,
 		"cintas": cintas.celdas.duplicate(true), "suelo": suelo.duplicate(true), "camiones": camiones.duplicate(true),
 		"pedidos": pedidos.duplicate(true), "menas": mn, "ciudad": ciudad.distritos.duplicate(true),
 		"precio": ciudad.precio, "ordenanza": ciudad.ordenanza, "bloqueo_horas": ciudad.bloqueo_horas,
 		"enfriamiento_bloqueo": ciudad.enfriamiento_bloqueo, "quejas_nocturnas": ciudad.quejas_nocturnas,
 		"rng": ciudad.rng.state, "historial": historial.duplicate(true), "contadores": contadores.duplicate(true),
 		"sig_robot": sig_robot, "sig_camion": sig_camion, "acum": _acum.duplicate(true)}
+	if desarrollo:
+		detalle.desarrollo = {"sistemas": dev_sistemas.duplicate(), "ajustes": dev_ajustes.duplicate()}
+		detalle.desarrollo.velocidad_cintas = cintas.velocidad
+		detalle.desarrollo.ruido_nocturno = ciudad.ruido_nocturno
+		detalle.desarrollo.umbral_ordenanza = ciudad.umbral_ordenanza
+		for r in robots:
+			detalle.desarrollo["robot_%d" % r.id] = r.def.duplicate(true)
+		for id in maquinas:
+			detalle.desarrollo[id] = maquinas[id].def.duplicate(true)
+			detalle.desarrollo["tiempo_" + id] = maquinas[id].dev_tiempo
+	return detalle
 
 
 # ================================================================ preparación
@@ -197,6 +218,8 @@ func _crear_maquina(tipo: String, celda: Vector2i, rot: int, instantanea := fals
 	var pref: String = Cfg.MAQUINAS[tipo].prefijo
 	contadores[pref] = int(contadores.get(pref, 0)) + 1
 	var m := Maquina.new("%s-%02d" % [pref, contadores[pref]], tipo, celda, rot)
+	if desarrollo:
+		m.def = m.def.duplicate(true)
 	m.obra = 0.0 if instantanea else Cfg.T_CONSTRUIR
 	m.estado = "inactiva" if instantanea else "construyendo"
 	maquinas[m.id] = m
@@ -206,6 +229,10 @@ func _crear_maquina(tipo: String, celda: Vector2i, rot: int, instantanea := fals
 
 func _nuevo_robot(nivel: int, pos: Vector2) -> Robot:
 	var r := Robot.new(sig_robot, nivel, pos)
+	if desarrollo:
+		r.def = r.def.duplicate(true)
+		r.def.vel = dev_ajustes.get("robots.%d.vel" % nivel, r.def.vel)
+		r.def.cap = int(dev_ajustes.get("robots.%d.cap" % nivel, r.def.cap))
 	sig_robot += 1
 	robots.append(r)
 	log_evento(r.nombre(), "alta", "", 0, r.def.nombre)
@@ -527,19 +554,25 @@ func paso() -> void:
 	n_paso += 1
 	var dt := 1.0 / Cfg.HZ
 	t += dt
-	for m: Maquina in maquinas.values():
-		_paso_maquina(m, dt)
-	cintas.paso(dt, _entregar_desde_cinta)
-	for r in robots:
-		_paso_robot(r, dt)
-	_separar()
-	_paso_pedidos(dt)
-	for c in camiones.duplicate():
-		_paso_camion(c, dt)
+	if dev_sistemas.produccion or not desarrollo:
+		for m: Maquina in maquinas.values():
+			_paso_maquina(m, dt)
+	if dev_sistemas.logistica or not desarrollo:
+		cintas.paso(dt, _entregar_desde_cinta)
+	if dev_sistemas.robots or not desarrollo:
+		for r in robots:
+			_paso_robot(r, dt)
+		_separar()
+	if dev_sistemas.logistica or not desarrollo:
+		_paso_pedidos(dt)
+		for c in camiones.duplicate():
+			_paso_camion(c, dt)
 	var h := int(hora())
 	if h != _hora_previa:
-		if _hora_previa != -1:
+		if _hora_previa != -1 and (dev_sistemas.ciudad or not desarrollo):
 			_paso_ciudad()
+		elif desarrollo and not dev_sistemas.ciudad:
+			_acum = {"humo": 0.0, "ruido": 0.0, "trafico": 0.0}
 		_hora_previa = h
 
 
@@ -562,7 +595,7 @@ func _paso_maquina(m: Maquina, dt: float) -> void:
 		nuevo = _producir(m, dt)
 	else:
 		nuevo = "inactiva"
-		if m.tipo == "despacho" and m.envio_auto and m.total_entrada() >= 10 and camion_venta_libre() and _primera("despacho") == m:
+		if m.tipo == "despacho" and m.envio_auto and m.total_entrada() >= 10 and camion_venta_libre() and _primera("despacho") == m and (dev_sistemas.logistica or not desarrollo):
 			_enviar_camion()
 	if nuevo == "trabajando":
 		_acum.humo += m.humo() * dt
@@ -571,7 +604,8 @@ func _paso_maquina(m: Maquina, dt: float) -> void:
 		m.estado = nuevo
 		if nuevo in ["sin_insumo", "salida_llena", "pausada", "turno", "averiada", "trabajando"]:
 			log_evento(m.id, "estado", "", 0, nuevo)
-	_empujar_a_cinta(m)
+	if dev_sistemas.logistica or not desarrollo:
+		_empujar_a_cinta(m)
 
 
 func _producir(m: Maquina, dt: float) -> String:
@@ -588,7 +622,7 @@ func _producir(m: Maquina, dt: float) -> String:
 			m.entrada[mat] -= rec.entra[mat]
 		m.trabajando = true
 		m.progreso = 0.0
-	m.progreso += dt / rec.t
+	m.progreso += dt / (rec.t * float(dev_ajustes.get("maquinas.tiempo", 1.0)) * m.dev_tiempo)
 	if m.progreso < 1.0:
 		return "trabajando"
 	if rec.has("robot"):
@@ -1147,6 +1181,9 @@ func _paso_camion(c: Dictionary, dt: float) -> void:
 			c.timer += dt
 			if c.timer >= 3.0:
 				if c.tipo == "proveedor":
+					if _primera("recepcion") == null:
+						c.esperando = true
+						return
 					_descargar_proveedor(c)
 				else:
 					_vender(c)
@@ -1223,7 +1260,7 @@ func _paso_ciudad() -> void:
 					aviso("Sabotaje en %s. Clic derecho con un robot para repararla." % m.id, "alerta")
 			"ordenanza":
 				log_evento("CIUDAD", "ordenanza", "", 0, "Silencio nocturno 22-06")
-				aviso("Ordenanza municipal: silencio nocturno de 22:00 a 06:00. El ayuntamiento auditará tu tabla `eventos` cada noche y multará con ₵ 40 por cada máquina ruidosa que produzca.", "alerta")
+				aviso("Ordenanza municipal: silencio nocturno de 22:00 a 06:00. El ayuntamiento auditará tu tabla `eventos` cada noche y multará con ₵ %d por cada máquina ruidosa que produzca." % int(dev_ajustes.get("ciudad.multa", 40)), "alerta")
 	# Auditoría: la ciudad consulta TU registro. Si borras eventos, también lo verá (filas faltantes).
 	if ciudad.ordenanza and int(hora()) == 6:
 		auditorias.append({"dia": dia(), "sql": SQL_AUDITORIA % [dia() - 1, dia()]})
@@ -1246,7 +1283,7 @@ func _resultado_auditoria(filas: Array) -> void:
 		log_evento("CIUDAD", "auditoria", "", 0, "sin infracciones")
 		aviso("Auditoría nocturna: sin infracciones.", "info")
 		return
-	var multa := 40.0 * filas.size()
+	var multa := float(dev_ajustes.get("ciudad.multa", 40.0)) * filas.size()
 	dinero -= multa
 	var ids: PackedStringArray = []
 	for f in filas:

@@ -20,11 +20,14 @@ var _t_volcado := 0.0
 var _t_proyeccion := 0.0
 var _t_retencion := 0.0
 var _t_foto := 0.0
+var devtools: Devtools
+var _generacion_programas := 0
+var _auditorias_pendientes := 0
 
 
 func _ready() -> void:
 	ThemeDB.fallback_font = Estilo.fuente()   # también para los Label3D del mundo
-	sim = Simulacion.new()
+	sim = Simulacion.new(OS.is_debug_build() or "--dev" in OS.get_cmdline_user_args())
 	# PostgreSQL y JavaScript viven en el servicio auxiliar (Node). Sin él: SQLite y sin programas.
 	servicio = Servicio.new()
 	add_child(servicio)
@@ -57,6 +60,11 @@ func _ready() -> void:
 	if not db.pendiente:
 		_anunciar_base()
 	hud.aviso("Pulsa F1 para ver los controles. Selecciona una mula y haz clic derecho en la pila de cobre de REC-01.", "aviso")
+	if sim.desarrollo:
+		devtools = Devtools.new()
+		add_child(devtools)
+		devtools.iniciar(self)
+		hud.aviso("F12 · Laboratorio: escenarios, entidades y ajustes de jugabilidad.", "info")
 	# Pruebas automáticas: godot --path . -- --guion=res://pruebas/guion_capturas.gd
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--guion="):
@@ -70,15 +78,26 @@ func _process(delta: float) -> void:
 	_acum += min(delta, 0.1) * velocidad
 	var pasos := 0
 	while _acum >= dt and pasos < 64:
+		if devtools != null and not devtools.antes_paso():
+			break
 		sim.paso()
 		_acum -= dt
 		pasos += 1
+		if devtools != null:
+			devtools.despues_paso()
+			if velocidad == 0.0:
+				_acum = 0.0
+				break
 	var alfa := clampf(_acum / dt, 0.0, 1.0) if velocidad > 0.0 else 1.0
 	vmundo.actualizar(delta)
 	vfab.actualizar(alfa, velocidad)
 	vrob.actualizar(alfa, velocidad)
+	if devtools != null:
+		devtools.observar_registro()
 	_base_de_datos(delta)
 	_programas(delta)
+	if devtools != null:
+		devtools.observar_registro()
 	for a in sim.avisos:
 		hud.aviso(a.texto, a.tipo)
 	sim.avisos.clear()
@@ -106,6 +125,8 @@ func _base_de_datos(delta: float) -> void:
 	if _t_volcado > 0.25:
 		_t_volcado = 0.0
 		var a := db.volcar(sim)
+		if devtools != null:
+			devtools._inicio_registro = 0
 		if a != "":
 			hud.aviso(a, "aviso")
 	if _t_proyeccion > 1.0:
@@ -118,9 +139,16 @@ func _base_de_datos(delta: float) -> void:
 	# La ciudad audita tu tabla de eventos con SQL (el mismo que podrías escribir tú).
 	for au in sim.auditorias:
 		db.volcar(sim)
+		if devtools != null:
+			devtools._inicio_registro = 0
 		db.proyectar(sim)
 		hud.aviso("El ayuntamiento ejecutó sobre tu base:\n" + au.sql.replace("\n", " "), "aviso")
-		db.consultar_luego(au.sql, func(r): sim.resultado_auditoria(r.filas if r.ok else []))
+		var auditada := sim
+		_auditorias_pendientes += 1
+		db.consultar_luego(au.sql, func(r):
+			if sim == auditada:
+				_auditorias_pendientes -= 1
+				auditada.resultado_auditoria(r.filas if r.ok else []))
 	sim.auditorias.clear()
 
 
@@ -141,7 +169,7 @@ func _programas(delta: float) -> void:
 		return
 	for m in servicio.recibir():
 		var r: Robot = sim.robot(int(m.get("robot", -1))) if m.has("robot") else null
-		if r != null and int(m.get("ejecucion", -1)) != r.ejecucion:
+		if r != null and int(m.get("ejecucion", -1)) != _token_programa(r):
 			continue   # mensaje tardío de un programa ya detenido o sustituido
 		match str(m.op):
 			"accion":
@@ -175,7 +203,7 @@ func _programas(delta: float) -> void:
 		for res in sim.resultados:
 			var rr := sim.robot(res.robot)
 			servicio.enviar({"op": "resultado", "robot": res.robot, "ticket": res.ticket, "resultado": res.resultado,
-				"ejecucion": rr.ejecucion if rr else 0, "estado": foto})
+				"ejecucion": _token_programa(rr) if rr else 0, "estado": foto})
 		sim.resultados.clear()
 	_t_foto += delta
 	if _t_foto > 0.25:
@@ -201,7 +229,7 @@ func ejecutar_programa(r: Robot) -> void:
 	r.linea = 0
 	r.linea_error = 0
 	servicio.enviar({"op": "estado", "estado": sim.instantanea()})
-	servicio.enviar({"op": "ejecutar", "robot": r.id, "nivel": r.nivel, "codigo": r.codigo, "ejecucion": r.ejecucion})
+	servicio.enviar({"op": "ejecutar", "robot": r.id, "nivel": r.nivel, "codigo": r.codigo, "ejecucion": _token_programa(r)})
 	log_programa(r, "inicio")
 
 
@@ -221,6 +249,8 @@ func log_programa(r: Robot, que: String) -> void:
 
 
 func _unhandled_input(e: InputEvent) -> void:
+	if devtools != null and (devtools.ocupado or devtools.panel.abierto):
+		return
 	if not (e is InputEventKey and e.pressed and not e.echo) or control.escribiendo():
 		return
 	match e.keycode:
@@ -237,3 +267,43 @@ func _unhandled_input(e: InputEvent) -> void:
 		_:
 			return
 	get_viewport().set_input_as_handled()
+
+
+func _token_programa(r: Robot) -> int:
+	return r.ejecucion + _generacion_programas * 1000000000
+
+
+## Reemplazo completo de presentación; la cámara y el panel de laboratorio se conservan.
+func dev_reemplazar(nueva: Simulacion) -> void:
+	for r in sim.robots:
+		servicio.enviar({"op": "detener", "robot": r.id})
+	_generacion_programas += 1
+	_auditorias_pendientes = 0
+	# Quitar los nodos antes de añadir los nuevos evita input y señales sobre el mundo anterior.
+	for n in [control, hud, vrob, vfab, vmundo]:
+		remove_child(n)
+		n.queue_free()
+	sim = nueva
+	_acum = 0.0
+	_t_volcado = 0.0
+	_t_proyeccion = 0.0
+	_t_retencion = 0.0
+	_t_foto = 0.0
+	vmundo = VistaMundo.new()
+	add_child(vmundo)
+	vmundo.construir(sim)
+	vfab = VistaFabrica.new()
+	add_child(vfab)
+	vfab.construir(sim, vmundo.tex_humo)
+	vrob = VistaRobots.new()
+	add_child(vrob)
+	vrob.construir(sim)
+	hud = Hud.new()
+	add_child(hud)
+	hud.iniciar(self)
+	control = ControlRTS.new()
+	add_child(control)
+	control.iniciar(self)
+	control.seleccion_cambiada.connect(hud.al_cambiar_seleccion)
+	hud.al_cambiar_seleccion()
+	devtools.panel.refrescar_mundo()

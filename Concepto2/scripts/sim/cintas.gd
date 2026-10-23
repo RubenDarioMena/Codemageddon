@@ -4,6 +4,7 @@ extends RefCounted
 ## ordenada del más avanzado (s cercano a 1) al menos avanzado (s cercano a 0).
 
 var celdas := {}   # Vector2i -> {dir: int, items: Array[Dictionary], obra: float, atasco: bool}
+var velocidad := Cfg.CINTA_VEL  # instancia: las devtools no modifican Cfg
 
 
 func poner(c: Vector2i, dir: int, obra: float) -> void:
@@ -35,7 +36,7 @@ func meter(c: Vector2i, material: String, s: float = 0.0) -> void:
 ## Avanza los objetos. `entregar(celda_destino, material) -> int` decide si una máquina lo recibe:
 ## 1 = recibido, 0 = lleno (espera), -1 = no lo acepta (espera, atasco).
 func paso(dt: float, entregar: Callable) -> void:
-	var avance := Cfg.CINTA_VEL * dt
+	var avance := velocidad * dt
 	for c in celdas:
 		var b: Dictionary = celdas[c]
 		if b.obra > 0.0:

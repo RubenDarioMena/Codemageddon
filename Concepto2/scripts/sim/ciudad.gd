@@ -16,6 +16,8 @@ var enfriamiento_bloqueo := 0.0
 var ordenanza := false       # silencio nocturno en vigor
 var quejas_nocturnas := 0
 var rng := RandomNumberGenerator.new()
+var ruido_nocturno := 2.5
+var umbral_ordenanza := 12
 
 
 func _init(semilla: int = 3) -> void:
@@ -36,7 +38,7 @@ func hora(humo_h: float, ruido_h: float, trafico_h: float, noche: bool) -> Dicti
 		var d: Dictionary = distritos[nombre]
 		var cfg: Dictionary = Cfg.DISTRITOS[nombre]
 		var e_humo: float = humo_h * cfg.humo * 0.35
-		var e_ruido: float = ruido_h * cfg.ruido * 0.12 * (2.5 if noche else 1.0)
+		var e_ruido: float = ruido_h * cfg.ruido * 0.12 * (ruido_nocturno if noche else 1.0)
 		var e_trafico: float = trafico_h * cfg.trafico * 0.3
 		var molestia := e_humo + e_ruido + e_trafico
 		d.humo = e_humo
@@ -70,7 +72,7 @@ func hora(humo_h: float, ruido_h: float, trafico_h: float, noche: bool) -> Dicti
 		eventos.append({"tipo": "bloqueo", "distrito": "Centro"})
 	if distritos.Norte.p.protestar > 0.25 and rng.randf() < 0.5:
 		eventos.append({"tipo": "sabotaje", "distrito": "Norte"})
-	if not ordenanza and quejas_nocturnas >= 12:
+	if not ordenanza and quejas_nocturnas >= umbral_ordenanza:
 		ordenanza = true
 		eventos.append({"tipo": "ordenanza"})
 	return {"quejas": quejas, "eventos": eventos}
