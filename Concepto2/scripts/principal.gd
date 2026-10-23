@@ -129,9 +129,14 @@ func _base_de_datos(delta: float) -> void:
 func _programas(delta: float) -> void:
 	if not servicio.conectado:
 		sim.resultados.clear()
+		var perdidos: Array[int] = []
 		for r in sim.robots:
 			if r.ejecutando:
-				r.ejecutando = false
+				perdidos.append(r.id)
+		if not perdidos.is_empty():
+			sim.aplicar({"tipo": "perdida_servicio"})
+			for id in perdidos:
+				var r := sim.robot(id)
 				r.consola.append("[color=#ff6b6b]✖ Se perdió la conexión con el servicio.[/color]")
 		return
 	for m in servicio.recibir():
@@ -142,7 +147,7 @@ func _programas(delta: float) -> void:
 			"accion":
 				if r != null and r.ejecutando:
 					r.linea = int(m.linea)
-					sim.orden_programa(r, m.orden, int(m.ticket))
+					sim.aplicar({"tipo": "orden_programa", "robot": r.id, "datos": m.orden, "ticket": int(m.ticket)})
 			"log":
 				if r != null:
 					var texto := str(m.texto)
@@ -157,9 +162,7 @@ func _programas(delta: float) -> void:
 					sim.log_evento(r.nombre(), "error_programa", "", linea, str(m.mensaje).left(240))
 			"fin":
 				if r != null and r.ejecutando:
-					r.ejecutando = false
-					r.ordenes.clear()
-					r.pc = 0
+					sim.aplicar({"tipo": "fin_programa", "robot": r.id})
 					r.consola.append("[color=#7f95a3]— fin del programa —[/color]")
 			"aviso_db":
 				hud.aviso("PostgreSQL (%s): %s" % [str(m.tabla), str(m.error)], "error")
@@ -192,16 +195,11 @@ func ejecutar_programa(r: Robot) -> void:
 		return
 	if r.ejecutando:
 		servicio.enviar({"op": "detener", "robot": r.id})
-	r.ejecucion += 1
+	sim.aplicar({"tipo": "iniciar_programa", "robot": r.id})
 	r.consola.clear()
 	r.consola.append("[color=#3fe08a]▶ ejecutando (%s)[/color]" % ("pausa: el programa espera a que reanudes" if velocidad == 0.0 else "×%d" % int(velocidad)))
-	r.ejecutando = true
 	r.linea = 0
 	r.linea_error = 0
-	r.auto = false
-	r.repetir = false
-	r.ordenes.clear()
-	r.pc = 0
 	servicio.enviar({"op": "estado", "estado": sim.instantanea()})
 	servicio.enviar({"op": "ejecutar", "robot": r.id, "nivel": r.nivel, "codigo": r.codigo, "ejecucion": r.ejecucion})
 	log_programa(r, "inicio")
@@ -211,10 +209,7 @@ func detener_programa(r: Robot, motivo: String = "") -> void:
 	if not r.ejecutando:
 		return
 	servicio.enviar({"op": "detener", "robot": r.id})
-	r.ejecucion += 1
-	r.ejecutando = false
-	r.ordenes.clear()
-	r.pc = 0
+	sim.aplicar({"tipo": "detener_programa", "robot": r.id})
 	r.consola.append("[color=#7f95a3]■ detenido%s[/color]" % (": " + motivo if motivo != "" else ""))
 	if motivo != "":
 		hud.aviso("%s: %s" % [r.nombre(), motivo], "aviso")

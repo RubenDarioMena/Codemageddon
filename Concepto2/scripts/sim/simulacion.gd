@@ -8,6 +8,8 @@ extends RefCounted
 ## Las órdenes del jugador y las rutinas usan las mismas reglas físicas (GDD §5).
 
 var t := 0.0
+var n_paso := 0
+var diario: Array[Dictionary] = []
 var dinero := float(Cfg.PRESUPUESTO)
 var rejilla: Rejilla
 var maquinas := {}                  # id -> Maquina
@@ -36,6 +38,143 @@ var _ultimo_aviso := {}
 func _init() -> void:
 	rejilla = Rejilla.new(7)
 	_instalacion_inicial()
+
+
+func aplicar(cmd: Dictionary) -> String:
+	diario.append({"paso": n_paso, "cmd": cmd.duplicate(true)})
+	var r: Robot
+	match str(cmd.get("tipo", "")):
+		"comprar":
+			return _comprar(str(cmd.material))
+		"construir":
+			return _construir(str(cmd.maquina), cmd.celda, int(cmd.rot))
+		"construir_cintas":
+			return _construir_cintas(cmd.tramo)
+		"demoler":
+			_demoler(str(cmd.id))
+		"quitar_cinta":
+			_quitar_cinta(cmd.celda)
+		"deshacer":
+			return _deshacer()
+		"enviar_camion":
+			return _enviar_camion()
+		"ordenar":
+			var rs := []
+			for id in cmd.robots:
+				r = robot(int(id))
+				if r != null:
+					rs.append(r)
+			_ordenar(rs, cmd.orden, bool(cmd.encolar))
+		"limpiar_ordenes":
+			r = robot(int(cmd.robot))
+			if r != null:
+				_limpiar_ordenes(r)
+		"set_repetir":
+			r = robot(int(cmd.robot))
+			if r == null:
+				return "Robot inexistente"
+			return _set_repetir(r, bool(cmd.valor))
+		"set_auto":
+			r = robot(int(cmd.robot))
+			if r != null:
+				_set_auto(r, bool(cmd.valor))
+		"orden_programa":
+			r = robot(int(cmd.robot))
+			if r != null:
+				_orden_programa(r, cmd.datos, int(cmd.ticket))
+		"resultado_auditoria":
+			_resultado_auditoria(cmd.filas)
+		"set_maquina":
+			var m: Maquina = maquinas.get(str(cmd.id))
+			if m == null:
+				return "Máquina inexistente"
+			match str(cmd.campo):
+				"pausada":
+					m.pausada = bool(cmd.valor)
+				"turno_diurno":
+					m.turno_diurno = bool(cmd.valor)
+				"receta":
+					m.receta = str(cmd.valor)
+				"salida_cinta":
+					m.salida_cinta = str(cmd.valor)
+				"envio_auto":
+					m.envio_auto = bool(cmd.valor)
+				_:
+					return "Campo de máquina no permitido"
+		"iniciar_programa", "detener_programa", "fin_programa":
+			r = robot(int(cmd.robot))
+			if r == null:
+				return "Robot inexistente"
+			match str(cmd.tipo):
+				"iniciar_programa":
+					r.ejecucion += 1
+					r.ejecutando = true
+					r.linea = 0
+					r.linea_error = 0
+					r.auto = false
+					r.repetir = false
+					r.ordenes.clear()
+					r.pc = 0
+				"detener_programa":
+					r.ejecutando = false
+					r.ejecucion += 1
+					r.ordenes.clear()
+					r.pc = 0
+				"fin_programa":
+					r.ejecutando = false
+					r.ordenes.clear()
+					r.pc = 0
+		"perdida_servicio":
+			for x in robots:
+				if x.ejecutando:
+					x.ejecutando = false
+		_:
+			return "Comando desconocido: %s" % str(cmd.get("tipo", ""))
+	return ""
+
+
+static func reproducir(entradas: Array, pasos: int) -> Simulacion:
+	var s := Simulacion.new()
+	var indice := 0
+	for k in pasos:
+		while indice < entradas.size() and int(entradas[indice].paso) == k:
+			s.aplicar(entradas[indice].cmd)
+			indice += 1
+		s.paso()
+	return s
+
+
+func huella() -> String:
+	return var_to_str(huella_detalle()).md5_text()
+
+
+func huella_detalle() -> Dictionary:
+	var ms := {}
+	for id in maquinas:
+		var m: Maquina = maquinas[id]
+		ms[id] = {"id": m.id, "tipo": m.tipo, "celda": m.celda, "rot": m.rot,
+			"entrada": m.entrada.duplicate(true), "salida": m.salida.duplicate(true), "receta": m.receta,
+			"progreso": m.progreso, "trabajando": m.trabajando, "estado": m.estado, "obra": m.obra,
+			"turno_diurno": m.turno_diurno, "pausada": m.pausada, "averiada": m.averiada,
+			"producidos": m.producidos, "salida_cinta": m.salida_cinta, "envio_auto": m.envio_auto}
+	var rs := []
+	for r in robots:
+		rs.append({"id": r.id, "nivel": r.nivel, "pos": r.pos, "rumbo": r.rumbo, "carga": r.carga,
+			"cant": r.cant, "ordenes": r.ordenes.duplicate(true), "pc": r.pc, "repetir": r.repetir,
+			"auto": r.auto, "auto_fase": r.auto_fase, "auto_obj": r.auto_obj.duplicate(true),
+			"estado": r.estado, "camino": r.camino, "paso": r.paso, "meta": r.meta,
+			"timer": r.timer, "atasco": r.atasco, "distancia": r.distancia,
+			"ejecutando": r.ejecutando, "ejecucion": r.ejecucion, "resultado": r.resultado})
+	var mn := []
+	for mena_dato in rejilla.menas:
+		mn.append({"id": mena_dato.id, "celda": mena_dato.celda, "cantidad": mena_dato.cantidad, "max": mena_dato.max})
+	return {"t": t, "n_paso": n_paso, "dinero": dinero, "maquinas": ms, "robots": rs,
+		"cintas": cintas.celdas.duplicate(true), "suelo": suelo.duplicate(true), "camiones": camiones.duplicate(true),
+		"pedidos": pedidos.duplicate(true), "menas": mn, "ciudad": ciudad.distritos.duplicate(true),
+		"precio": ciudad.precio, "ordenanza": ciudad.ordenanza, "bloqueo_horas": ciudad.bloqueo_horas,
+		"enfriamiento_bloqueo": ciudad.enfriamiento_bloqueo, "quejas_nocturnas": ciudad.quejas_nocturnas,
+		"rng": ciudad.rng.state, "historial": historial.duplicate(true), "contadores": contadores.duplicate(true),
+		"sig_robot": sig_robot, "sig_camion": sig_camion, "acum": _acum.duplicate(true)}
 
 
 # ================================================================ preparación
@@ -113,6 +252,9 @@ func camion_venta_libre() -> bool:
 # ================================================================ acciones del jugador
 
 func comprar(material: String) -> String:
+	return aplicar({"tipo": "comprar", "material": material})
+
+func _comprar(material: String) -> String:
 	var p: Dictionary = Cfg.PEDIDOS[material]
 	if dinero < p.precio:
 		return "No alcanza el presupuesto (₵ %d)." % p.precio
@@ -138,6 +280,9 @@ func validar(tipo: String, celda: Vector2i, rot: int) -> String:
 
 
 func construir(tipo: String, celda: Vector2i, rot: int) -> String:
+	return aplicar({"tipo": "construir", "maquina": tipo, "celda": celda, "rot": rot})
+
+func _construir(tipo: String, celda: Vector2i, rot: int) -> String:
 	var err := validar(tipo, celda, rot)
 	if err != "":
 		return err
@@ -160,6 +305,9 @@ func validar_cinta(c: Vector2i) -> String:
 
 ## tramo: Array de [Vector2i, dir]. Las casillas que ya son cinta cambian de dirección gratis.
 func construir_cintas(tramo: Array) -> String:
+	return aplicar({"tipo": "construir_cintas", "tramo": tramo})
+
+func _construir_cintas(tramo: Array) -> String:
 	var nuevas := 0
 	for p in tramo:
 		if validar_cinta(p[0]) != "":
@@ -185,6 +333,9 @@ func construir_cintas(tramo: Array) -> String:
 
 
 func demoler(id: String) -> void:
+	aplicar({"tipo": "demoler", "id": id})
+
+func _demoler(id: String) -> void:
 	var m: Maquina = maquinas.get(id)
 	if m == null or m.tipo == "recepcion":
 		return
@@ -200,6 +351,9 @@ func demoler(id: String) -> void:
 
 
 func quitar_cinta(c: Vector2i) -> void:
+	aplicar({"tipo": "quitar_cinta", "celda": c})
+
+func _quitar_cinta(c: Vector2i) -> void:
 	if not cintas.celdas.has(c):
 		return
 	for it in cintas.quitar(c):
@@ -209,6 +363,9 @@ func quitar_cinta(c: Vector2i) -> void:
 
 ## Ctrl+Z: deshace la última obra mientras siga en construcción (reembolso completo).
 func deshacer() -> String:
+	return aplicar({"tipo": "deshacer"})
+
+func _deshacer() -> String:
 	if historial.is_empty():
 		return "Nada que deshacer"
 	var h: Dictionary = historial.back()
@@ -229,6 +386,9 @@ func deshacer() -> String:
 
 
 func enviar_camion() -> String:
+	return aplicar({"tipo": "enviar_camion"})
+
+func _enviar_camion() -> String:
 	var des: Maquina = _primera("despacho")
 	if des == null:
 		return "No hay despacho"
@@ -252,6 +412,11 @@ func enviar_camion() -> String:
 
 ## Da una orden a varios robots. `encolar` = Shift (AoE2: añade al final de la lista).
 func ordenar(lista: Array, orden: Dictionary, encolar: bool) -> void:
+	var ids := []
+	for r in lista: ids.append(r.id)
+	aplicar({"tipo": "ordenar", "robots": ids, "orden": orden, "encolar": encolar})
+
+func _ordenar(lista: Array, orden: Dictionary, encolar: bool) -> void:
 	for r: Robot in lista:
 		if orden.tipo == "minar" and not r.def.minar:
 			aviso("%s no tiene pala: solo un explorador T2 puede minar." % r.etiqueta(), "error")
@@ -269,6 +434,9 @@ func ordenar(lista: Array, orden: Dictionary, encolar: bool) -> void:
 
 
 func limpiar_ordenes(r: Robot) -> void:
+	aplicar({"tipo": "limpiar_ordenes", "robot": r.id})
+
+func _limpiar_ordenes(r: Robot) -> void:
 	r.ordenes.clear()
 	r.pc = 0
 	r.camino = PackedVector2Array()
@@ -276,6 +444,9 @@ func limpiar_ordenes(r: Robot) -> void:
 
 
 func set_repetir(r: Robot, v: bool) -> String:
+	return aplicar({"tipo": "set_repetir", "robot": r.id, "valor": v})
+
+func _set_repetir(r: Robot, v: bool) -> String:
 	if v and not r.def.bucle:
 		return "La %s no tiene chip: no puede repetir. Fabrica un Operario T1." % r.def.nombre
 	r.repetir = v
@@ -285,6 +456,9 @@ func set_repetir(r: Robot, v: bool) -> String:
 
 
 func set_auto(r: Robot, v: bool) -> void:
+	aplicar({"tipo": "set_auto", "robot": r.id, "valor": v})
+
+func _set_auto(r: Robot, v: bool) -> void:
 	if not r.def.auto:
 		return
 	r.auto = v
@@ -299,6 +473,9 @@ func set_auto(r: Robot, v: bool) -> void:
 ## Una orden que viene de un programa: sustituye la lista del robot y lleva un ticket que se
 ## devuelve con su resultado cuando la acción termina (así `await` espera el tiempo simulado).
 func orden_programa(r: Robot, datos: Dictionary, ticket: int) -> void:
+	aplicar({"tipo": "orden_programa", "robot": r.id, "datos": datos, "ticket": ticket})
+
+func _orden_programa(r: Robot, datos: Dictionary, ticket: int) -> void:
 	var o := {"tipo": str(datos.get("tipo", "")), "fase": "", "ticket": ticket}
 	match o.tipo:
 		"mover":
@@ -347,6 +524,7 @@ func instantanea() -> Dictionary:
 # ================================================================ paso
 
 func paso() -> void:
+	n_paso += 1
 	var dt := 1.0 / Cfg.HZ
 	t += dt
 	for m: Maquina in maquinas.values():
@@ -385,7 +563,7 @@ func _paso_maquina(m: Maquina, dt: float) -> void:
 	else:
 		nuevo = "inactiva"
 		if m.tipo == "despacho" and m.envio_auto and m.total_entrada() >= 10 and camion_venta_libre() and _primera("despacho") == m:
-			enviar_camion()
+			_enviar_camion()
 	if nuevo == "trabajando":
 		_acum.humo += m.humo() * dt
 		_acum.ruido += m.ruido() * dt
@@ -742,6 +920,10 @@ func _rutina_explorador(r: Robot, dt: float) -> void:
 					r.auto_fase = "buscar"
 
 
+func mena(id: String) -> Dictionary:
+	return _mena(id)
+
+
 func _mena(id: String) -> Dictionary:
 	for m in rejilla.menas:
 		if m.id == id:
@@ -1056,6 +1238,10 @@ GROUP BY origen;"""
 
 
 func resultado_auditoria(filas: Array) -> void:
+	aplicar({"tipo": "resultado_auditoria", "filas": filas})
+
+
+func _resultado_auditoria(filas: Array) -> void:
 	if filas.is_empty():
 		log_evento("CIUDAD", "auditoria", "", 0, "sin infracciones")
 		aviso("Auditoría nocturna: sin infracciones.", "info")
