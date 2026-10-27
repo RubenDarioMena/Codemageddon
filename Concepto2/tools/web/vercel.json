@@ -1,8 +1,18 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "Trunk": false
+    }
+  },
   "headers": [
     {
       "source": "/(.*)\\.(wasm|pck|data)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
+        }
+      ]
     }
   ]
 }

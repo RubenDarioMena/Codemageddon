@@ -37,7 +37,7 @@ Zonas grises: generación procedural del terreno. **Quien define cómo se ve dec
 3. Codex implementa, corre las pruebas headless y entrega su resumen (formato en `AGENTS.md`), con los cambios sin commitear.
 4. **Revisión de Claude** sobre `git diff` del worktree (plantilla abajo). Si hay hallazgos bloqueantes, vuelven a Codex con `codex.sh seguir` (mismo hilo). Al aprobar, Claude commitea en la rama de Codex.
 5. Claude integra la parte visual sobre el contrato y verifica con los guiones con ventana.
-6. Claude presenta el resultado al usuario; con su aprobación se fusiona a `main`.
+6. Claude presenta el resultado al usuario; con su aprobación se fusiona a `main`. El usuario lo prueba antes de fusionar con `sh tools/agentes/probar.sh <worktree>`, que enlaza `node_modules`, importa los recursos y abre el juego.
 
 ## Flujo adversarial (features nuevas o complejas): máximo 2 ciclos
 
