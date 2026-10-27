@@ -38,6 +38,13 @@
   --p-accion: #2F5FC9;
   --p-control: #1F8A4C;
   --p-cond-bg: rgba(31, 138, 76, .1);
+  /* Tipos en el código (inspector) */
+  --tk-var: #2450B3;
+  --tk-fn: #8A3FC0;
+  --tk-prop: #0E7A8A;
+  --tk-num: #B0306A;
+  --tk-str: #3F7D20;
+  --tk-kw: #1C2630;
   --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -51,6 +58,7 @@
     --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
     --b-accion: #3A68D0; --b-control: #2E8655; --b-espera: #6E6355; --b-texto: #FFFFFF; --chip-bg: #EEF1F4; --chip-ink: #1C2630;
     --p-accion: #86A8FF; --p-control: #63CF8E; --p-cond-bg: rgba(99, 207, 142, .12);
+    --tk-var: #7FA3FF; --tk-fn: #CFA2FF; --tk-prop: #63D2E0; --tk-num: #F27AB0; --tk-str: #9BD56B; --tk-kw: #E2E7E2;
     color-scheme: dark;
   }
 }
@@ -61,6 +69,7 @@
   --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
   --b-accion: #3A68D0; --b-control: #2E8655; --b-espera: #6E6355; --b-texto: #FFFFFF; --chip-bg: #EEF1F4; --chip-ink: #1C2630;
   --p-accion: #86A8FF; --p-control: #63CF8E; --p-cond-bg: rgba(99, 207, 142, .12);
+  --tk-var: #7FA3FF; --tk-fn: #CFA2FF; --tk-prop: #63D2E0; --tk-num: #F27AB0; --tk-str: #9BD56B; --tk-kw: #E2E7E2;
   color-scheme: dark;
 }
 
@@ -133,6 +142,7 @@ canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointe
 .banner p { margin: 0; font-size: 13.5px; }
 .banner .stats { font-family: var(--f-code); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .banner .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.banner .record { font-family: var(--f-code); font-weight: 600; font-size: 13px; }
 
 .info {
   display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap;
@@ -269,7 +279,7 @@ canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointe
 .banda.corre { display: block; background: var(--accent-soft); }
 .banda.err { display: block; background: var(--bad-soft); }
 textarea#codigo, .espejo {
-  font: inherit; line-height: var(--lh); padding: var(--pad); tab-size: 2;
+  font: inherit; line-height: var(--lh); padding: var(--pad); tab-size: 2; font-variant-ligatures: none;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
 textarea#codigo {
@@ -333,6 +343,70 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
 .ayuda pre { margin: 0; overflow-x: auto; font-family: var(--f-code); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
 .r { font-family: var(--f-code); font-size: .92em; padding: 0 3px; border-radius: 3px; background: var(--bg); }
 
+/* Inspector: lo que se usa en el código a la izquierda, datos a la derecha, métricas aparte */
+.inspector { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 12px; display: grid; gap: 10px; }
+.ins-cab { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ins-cab h2 { margin: 0; font-family: var(--f-code); font-size: 17px; font-weight: 600; }
+.ins-cab .clase { font-size: 12.5px; color: var(--muted); }
+.estado { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted); }
+.estado.activo { border-color: var(--accent); color: var(--accent); }
+.estado.mal { border-color: var(--bad); color: var(--bad); }
+.ins-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 420px) { .ins-cols { grid-template-columns: minmax(0, 1fr); } }
+.ins-col { display: grid; gap: 7px; align-content: start; min-width: 0; }
+.ins-col h3, .metricas-tit { margin: 0; font-family: var(--f-display); font-stretch: 112%; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+.grupo-tk { display: grid; gap: 3px; min-width: 0; }
+.grupo-tk > .g { font-size: 11.5px; color: var(--muted); }
+.fila-tk { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-family: var(--f-code); font-size: 12.5px; min-width: 0; }
+.fila-tk .sep { color: var(--muted); }
+.fila-tk .nota { font-family: var(--f-body); font-size: 12px; color: var(--muted); }
+.fila-tk .mat { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.tk {
+  border: 0; background: none; padding: 1px 3px; margin: 0 -3px; border-radius: 4px; cursor: copy; font-family: var(--f-code); font-size: 12.5px; font-weight: 600;
+  text-align: left; overflow-wrap: anywhere; -webkit-user-select: none; user-select: none; touch-action: manipulation;
+}
+.tk:hover { background: var(--accent-soft); }
+.tk.armado { outline: 1.5px dashed currentColor; outline-offset: 1px; }
+.tk.hecho { background: var(--accent-soft); }
+.tk-var { color: var(--tk-var); } .tk-fn { color: var(--tk-fn); } .tk-prop { color: var(--tk-prop); } .tk-num { color: var(--tk-num); } .tk-str { color: var(--tk-str); } .tk-kw { color: var(--tk-kw); font-weight: 700; }
+.leyenda-tk { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--muted); align-items: center; border-top: 1px dashed var(--line); padding-top: 8px; }
+.leyenda-tk span { font-family: var(--f-code); font-weight: 600; }
+.pista-tk { font-size: 12px; color: var(--muted); min-height: 1.4em; }
+.pista-tk code { font-family: var(--f-code); color: var(--ink); }
+.metricas { display: flex; flex-wrap: wrap; gap: 6px; }
+.metricas .m { border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font-size: 12px; background: var(--bg); font-variant-numeric: tabular-nums; }
+.metricas .m b { font-family: var(--f-code); font-weight: 600; }
+.ficha { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ficha .tramo { border-radius: 5px; padding: 2px 7px; background: var(--bg); border: 1px solid var(--line); }
+.ficha .tramo b { font-family: var(--f-code); font-weight: 600; }
+.ficha .flecha { color: var(--muted); }
+
+/* Arrastrar y soltar bloques */
+.prog { position: relative; }
+.prog .fila, .ladrillo { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.fantasma { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: .9; box-shadow: 0 8px 24px rgba(0,0,0,.25); border-radius: 8px; max-width: 70vw; }
+.soltar-linea { position: absolute; height: 0; border-top: 3px solid var(--accent); pointer-events: none; z-index: 2; }
+.soltar-linea::before { content: ""; position: absolute; left: -4px; top: -6.5px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.fila.arrastrando, .nodo.arrastrando { opacity: .35; }
+.paleta.borrar { outline: 2px dashed var(--bad); outline-offset: 2px; border-radius: 8px; }
+.paleta.borrar::after { content: "Suelta aquí para borrar"; flex: 0 0 auto; align-self: center; font-size: 12.5px; font-weight: 650; color: var(--bad); }
+.editor.soltar { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+/* Tu reto */
+.form { display: grid; gap: 10px; }
+.form .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 8px 12px; }
+.campo-f { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.campo-f input, .campo-f select, .campo-f textarea { border: 1px solid var(--line); border-radius: 7px; background: var(--code-bg); color: var(--ink); padding: 6px 8px; font-size: 14px; min-height: 36px; width: 100%; font-family: var(--f-body); }
+.campo-f textarea { min-height: 5rem; resize: vertical; }
+.form fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; margin: 0; display: grid; gap: 8px; min-width: 0; }
+.form fieldset:disabled { opacity: .7; }
+.form legend { font-size: 12px; font-weight: 650; color: var(--muted); padding: 0 4px; }
+.filas-f { display: grid; gap: 6px; }
+.fila-f { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); gap: 5px; align-items: end; }
+.fila-f .campo-f { font-size: 11px; }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); cursor: pointer; min-height: 32px; }
+textarea.json { width: 100%; height: 8rem; font-family: var(--f-code); font-size: 11.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--code-bg); color: var(--ink); padding: 8px; }
+
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 
@@ -356,8 +430,6 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
       <div class="banner" id="banner" hidden></div>
     </div>
 
-    <div class="info" id="info"><span>Toca un edificio para ver qué guarda.</span></div>
-
     <div class="controles">
       <button class="btn primario" id="b-ejecutar" type="button">▶ Ejecutar</button>
       <button class="btn" id="b-pausa" type="button" disabled>Pausa</button>
@@ -369,6 +441,7 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
       <span><i style="background:var(--silicio)"></i>silicio</span>
       <span><i style="background:var(--ink)"></i>robot R1 (lleva 1 unidad)</span>
     </div>
+    <section class="inspector" id="inspector" aria-label="Inspector del edificio elegido"></section>
   </div>
 
   <div class="col">
@@ -376,6 +449,7 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
       <button class="tab" role="tab" id="t-programa" aria-selected="true" aria-controls="v-programa" type="button">Programa</button>
       <button class="tab" role="tab" id="t-registro" aria-selected="false" aria-controls="v-registro" type="button">Registro</button>
       <button class="tab" role="tab" id="t-ayuda" aria-selected="false" aria-controls="v-ayuda" type="button">Órdenes</button>
+      <button class="tab" role="tab" id="t-reto" aria-selected="false" aria-controls="v-reto" type="button">Reto</button>
     </div>
 
     <section class="vista" id="v-programa" role="tabpanel" aria-labelledby="t-programa">
@@ -445,9 +519,9 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
     <section class="vista ayuda" id="v-ayuda" role="tabpanel" aria-labelledby="t-ayuda" hidden>
       <h3>Tres vistas, un solo programa</h3>
       <ul>
-        <li><b>Bloques:</b> toca un ladrillo de arriba y se coloca donde está la línea azul. Toca un bloque para moverlo, duplicarlo o borrarlo. Toca un valor para cambiarlo, o toca un edificio del mapa mientras eliges un lugar.</li>
+        <li><b>Bloques:</b> toca un ladrillo de arriba y se coloca donde está la línea azul, o arrástralo hasta donde lo quieras. Toca un bloque para moverlo, duplicarlo o borrarlo. Toca un valor para cambiarlo, o toca un edificio del mapa mientras eliges un lugar.</li>
         <li><b>Pseudocódigo:</b> el mismo programa escrito como frases. Se edita igual que los bloques.</li>
-        <li><b>JavaScript:</b> texto libre. Al volver a bloques, el texto se traduce si solo usa lo que los bloques conocen.</li>
+        <li><b>JavaScript:</b> texto libre. El programa de partida llega comentado: quita las // (Ctrl+/ o el botón «//») o escribe el tuyo. Al volver a bloques, el texto se traduce si solo usa lo que los bloques conocen.</li>
       </ul>
       <h3>Órdenes</h3>
       <div class="firma">
@@ -479,6 +553,18 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
   await yo.recoger("ENT-1", "cobre");
   await yo.entregar("FUN");
 }</pre>
+      <h3>Inspector y consola</h3>
+      <ul>
+        <li>Toca un edificio o a R1. A la izquierda está lo que se escribe en el código; a la derecha, sus datos; abajo, las métricas del intento.</li>
+        <li>Doble clic sobre una palabra de color: en JavaScript la inserta donde está el cursor; en bloques rellena el valor que tengas abierto o añade el bloque que corresponde.</li>
+        <li><span class="r">console.log</span>, <span class="r">info</span>, <span class="r">warn</span> y <span class="r">error</span> escriben en la consola y salen en un globo sobre R1.</li>
+        <li>En bloques y pseudocódigo puedes arrastrar los ladrillos al programa, mover bloques arrastrándolos y soltarlos sobre la paleta para borrarlos. En el móvil, mantén pulsado un bloque antes de arrastrarlo.</li>
+      </ul>
+    </section>
+
+    <section class="vista" id="v-reto" role="tabpanel" aria-labelledby="t-reto" hidden>
+      <div class="aviso" id="reto-aviso" hidden></div>
+      <form class="form" id="reto-form" autocomplete="off"></form>
     </section>
   </div>
 </div>
@@ -614,6 +700,51 @@ textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-siz
     },
   ];
 
+  // Reto propio: se edita en la pestaña Reto. Parte del mapa de «Plan B».
+  const PROPIO_BASE = {
+    titulo: "Tu reto",
+    objetivo: "Escribe aquí tu enunciado: qué tiene que lograr el programa.",
+    leccion: "Reto propio · se edita en la pestaña Reto.",
+    pista: "Revisa el registro y la consola.",
+    ladrillos: [...BASICOS, "esperar", "mientras", "si"],
+    robot: { ...RETOS[5].robot },
+    entidades: JSON.parse(JSON.stringify(RETOS[5].entidades)),
+    metas: JSON.parse(JSON.stringify(RETOS[5].metas)),
+    maxDerrames: 0, tiempoMax: 24, maxVacios: null,
+    inicial: [],
+  };
+  const IDX_PROPIO = RETOS.length;
+  // Valida lo que venga del formulario o de un JSON pegado.
+  function normalizarReto(d) {
+    const num = (v, def, min, max) => { const n = Number(v); return v === "" || v == null || !Number.isFinite(n) ? def : Math.min(max, Math.max(min, n)); };
+    const base = d && Array.isArray(d.entidades) && d.entidades.length ? d : PROPIO_BASE;
+    const entidades = base.entidades.slice(0, 6).map((e, i) => {
+      const c = { id: String(e.id || `E-${i + 1}`).slice(0, 8), tipo: e.tipo === "maquina" ? "maquina" : "bodega", nombre: e.nombre || (e.tipo === "maquina" ? "Máquina" : "Bodega"),
+        x: num(e.x, 1, 0, 8), y: num(e.y, 1, 0, 6), puerta: { x: num(e.puerta && e.puerta.x, 2, 0, 8), y: num(e.puerta && e.puerta.y, 1, 0, 6) } };
+      if (c.tipo === "bodega") {
+        c.stock = {}; for (const m of MATERIALES) if (e.stock && m in e.stock) c.stock[m] = Math.round(num(e.stock[m], 0, 0, 30));
+        if (!Object.keys(c.stock).length) c.stock.cobre = 0;
+        if (e.oculto) c.oculto = true;
+      } else Object.assign(c, { acepta: MATERIALES.includes(e.acepta) ? e.acepta : "cobre", cap: Math.round(num(e.cap, 1, 1, 8)), tProceso: num(e.tProceso, 3, 0.5, 30) });
+      return c;
+    });
+    const ids = entidades.map(e => e.id);
+    const metas = (Array.isArray(d && d.metas) ? d.metas : []).filter(m => ids.includes(m.id) && MATERIALES.includes(m.mat)).slice(0, 6)
+      .map(m => m.tipo === "vaciar" ? { tipo: "vaciar", id: m.id, mat: m.mat } : { id: m.id, mat: m.mat, n: Math.round(num(m.n, 1, 1, 30)) });
+    const ladrillos = ["recoger", "entregar", "repetir", "esperar", "mientras", "si"].filter(t => !d || !Array.isArray(d.ladrillos) || d.ladrillos.includes(t));
+    const lim = (v) => v === "" || v == null ? null : num(v, null, 0, 300);
+    return {
+      titulo: String((d && d.titulo) || "Tu reto").slice(0, 50), objetivo: String((d && d.objetivo) || ""), pista: String((d && d.pista) || ""),
+      leccion: "Reto propio · se edita en la pestaña Reto.",
+      ladrillos: ladrillos.length ? ladrillos : BASICOS,
+      robot: { x: num(base.robot && base.robot.x, 4, 0, 8), y: num(base.robot && base.robot.y, 3, 0, 6) },
+      entidades, metas: metas.length ? metas : [{ id: entidades.find(e => e.tipo === "maquina")?.id || ids[0], mat: "cobre", n: 1 }],
+      maxDerrames: lim(d && d.maxDerrames), tiempoMax: lim(d && d.tiempoMax), maxVacios: lim(d && d.maxVacios),
+      ...(Array.isArray(d && d.stockPorIntento) && entidades.some(e => e.oculto) ? { stockPorIntento: d.stockPorIntento.slice(0, 10).map(n => Math.round(num(n, 1, 0, 30))) } : {}),
+      inicial: [],
+    };
+  }
+
   // ---------- Textos de bloques y pseudocódigo ----------
   // kw = acción, kc = control, tx = texto, slot = valor editable, cond = condición
   const TXT = {
@@ -686,7 +817,11 @@ function __yo(linea) {
   });
 }
 function fmt(v) { if (typeof v === "string") return v; try { return JSON.stringify(v); } catch (_) { return String(v); } }
-function __log(linea) { return (...a) => postMessage({ type: "log", linea, texto: a.map(fmt).join(" ") }); }
+function __log(linea) { return (...a) => postMessage({ type: "log", linea, nivel: "log", texto: a.map(fmt).join(" ") }); }
+function __con(linea) {
+  const f = (nivel) => (...a) => postMessage({ type: "log", linea, nivel, texto: a.map(fmt).join(" ") });
+  return { log: f("log"), info: f("info"), warn: f("warn"), error: f("error") };
+}
 onmessage = async (ev) => {
   const m = ev.data;
   if (m.type === "res") {
@@ -702,13 +837,13 @@ onmessage = async (ev) => {
     try { await new AF("\\nthrow new Error('x')")(); } catch (e) { const n = lineaDe(e); OFF = n == null ? NaN : n - 2; }
   }
   let fn;
-  try { fn = new AF("__yo", "__log", m.codigo); }
+  try { fn = new AF("__yo", "__log", "__con", m.codigo); }
   catch (e) { postMessage({ type: "error", mensaje: "Error de sintaxis: " + e.message, linea: null }); return; }
-  try { await fn(__yo, __log); postMessage({ type: "done" }); }
+  try { await fn(__yo, __log, __con); postMessage({ type: "done" }); }
   catch (e) {
     let linea = e && e.__linea;
     if (linea == null) { const n = lineaDe(e); if (n != null && !isNaN(OFF)) linea = n - OFF; }
-    const msg = String((e && e.message) || e).replace(/__yo\\(\\d+\\)\\./g, "yo.").replace(/__log\\(\\d+\\)/g, "log");
+    const msg = String((e && e.message) || e).replace(/__yo\\(\\d+\\)\\./g, "yo.").replace(/__log\\(\\d+\\)/g, "log").replace(/__con\\(\\d+\\)\\./g, "console.");
     postMessage({ type: "error", mensaje: msg, linea: linea == null ? null : linea });
   }
 };
@@ -720,6 +855,7 @@ onmessage = async (ev) => {
     return src.split("\n").map((l, i) => l
       .replace(/(?<![\w.$])yo\s*\./g, `__yo(${i + 1}).`)
       .replace(/(?<![\w.$])log\s*\(/g, `__log(${i + 1})(`)
+      .replace(/(?<![\w.$])console\s*\./g, `__con(${i + 1}).`)
     ).join("\n");
   }
 
@@ -822,6 +958,7 @@ onmessage = async (ev) => {
             const ex = s.expression;
             if (ex.type === "CallExpression" && ex.callee.type === "MemberExpression" && ex.callee.object.name === "yo") no(s, "una orden sin await");
             if (ex.type === "CallExpression" && ex.callee.name === "log") no(s, "log()");
+            if (ex.type === "CallExpression" && ex.callee.type === "MemberExpression" && ex.callee.object.name === "console") no(s, `console.${ex.callee.property.name}()`);
             no(s, "esta instrucción");
           }
           if (l.verbo === "recoger" && str(l.args[0]) && str(l.args[1]) && l.args.length === 2) out.push({ t: "recoger", origen: l.args[0].value, mat: l.args[1].value });
@@ -860,7 +997,11 @@ onmessage = async (ev) => {
   }
 
   // ---------- Estado ----------
-  let retoIdx = Math.min(RETOS.length - 1, Math.max(0, guardado.leer("reto", 0)));
+  let retoIdx = Math.min(IDX_PROPIO, Math.max(0, guardado.leer("reto", 0)));
+  let propio = normalizarReto(guardado.leer("propio", null) || PROPIO_BASE);
+  let records = guardado.leer("records", {});
+  const retoDe = (i) => i === IDX_PROPIO ? propio : RETOS[i];
+  const retoActual = () => retoDe(retoIdx);
   let modo = guardado.leer("modo", "bloques");
   let idioma = guardado.leer("idioma", "en");
   let tamLetra = guardado.leer("letra", 14);
@@ -880,13 +1021,22 @@ onmessage = async (ev) => {
   let seleccionMapa = null;
   let lineaCorre = null, lineaErr = null;
   let mapaLineas = null;  // línea JS → id de nodo, del programa en curso
+  let globoR1 = null;     // último console.* o log(), dibujado sobre R1
+  let telemetriaUi = { dobleClic: 0, arrastre: 0, arrastreBloques: 0 };
 
   // ---------- Mundo ----------
+  // Qué sale de cada máquina según lo que acepta: nombre del producto y cuántos por cada unidad que entra.
+  const PRODUCTO = { cobre: ["placas de cobre", 2], silicio: ["obleas de silicio", 1] };
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const coma = (v, d = 1) => v.toFixed(d).replace(".", ",");
   function crearMundo(reto, nIntento) {
     const entidades = reto.entidades.map(e => {
       const c = JSON.parse(JSON.stringify(e));
-      if (c.tipo === "maquina") Object.assign(c, { entrada: 0, procesando: false, progreso: 0, recibido: {}, producido: 0, derrames: 0, suelo: [] });
-      if (c.tipo === "bodega") { c.stock = c.stock || {}; c.recibido = {}; }
+      if (c.tipo === "maquina") Object.assign(c, {
+        entrada: 0, procesando: false, progreso: 0, recibido: {}, producido: 0, ciclos: 0, derrames: 0, suelo: [],
+        produce: PRODUCTO[c.acepta][0], ratio: PRODUCTO[c.acepta][1], cola: [], actual: null, fichas: [], tOcupada: 0,
+      });
+      if (c.tipo === "bodega") { c.stock = c.stock || {}; c.recibido = {}; c.entregado = {}; }
       return c;
     });
     let stockOculto = null;
@@ -898,8 +1048,8 @@ onmessage = async (ev) => {
     return {
       t: 0, activo: false, fin: null, derrames: 0, vacios: 0, ultimoVacio: null, revelado: false, stockOculto,
       entidades, porId: Object.fromEntries(entidades.map(e => [e.id, e])),
-      robot: { x: reto.robot.x, y: reto.robot.y, carga: null, tarea: null },
-      eventos: [], verbos: {}, resultados: {},
+      robot: { x: reto.robot.x, y: reto.robot.y, carga: null, tarea: null, cargaDesde: null, cargaOrigen: null, tCaminando: 0, viajes: 0 },
+      eventos: [], verbos: {}, resultados: {}, consolas: { log: 0, info: 0, warn: 0, error: 0 },
     };
   }
 
@@ -915,14 +1065,21 @@ onmessage = async (ev) => {
     for (const e of mundo.entidades) {
       if (e.tipo !== "maquina") continue;
       if (e.procesando) {
-        e.progreso += dt;
-        if (e.progreso >= e.tProceso - 1e-9) { e.procesando = false; e.producido++; }
+        e.progreso += dt; e.tOcupada += dt;
+        if (e.progreso >= e.tProceso - 1e-9) {
+          e.procesando = false; e.ciclos++; e.producido += e.ratio;
+          // Ficha del producto: cuánto tardó cada tramo de la cadena que lo hizo.
+          const a = e.actual;
+          if (a) e.fichas.push({ n: e.ciclos, origen: a.origen, viaje: r2(a.tEntrega - a.tRecogida), espera: r2(a.tInicio - a.tEntrega), proceso: e.tProceso, total: r2(mundo.t - a.tRecogida) });
+          e.actual = null;
+        }
       }
-      if (!e.procesando && e.entrada > 0) { e.entrada--; e.procesando = true; e.progreso = 0; }
+      if (!e.procesando && e.entrada > 0) { e.entrada--; e.procesando = true; e.progreso = 0; e.actual = e.cola.shift() || null; if (e.actual) e.actual.tInicio = mundo.t; }
     }
     const r = mundo.robot, tarea = r.tarea;
     if (tarea) {
       let mov = VEL * dt;
+      if (tarea.wps.length) r.tCaminando += dt;
       while (mov > 0 && tarea.wps.length) {
         const w = tarea.wps[0], dx = w.x - r.x, dy = w.y - r.y, d = Math.hypot(dx, dy);
         if (d <= mov) { r.x = w.x; r.y = w.y; mov -= d; tarea.wps.shift(); }
@@ -942,7 +1099,7 @@ onmessage = async (ev) => {
       const [origen, mat] = args, e = mundo.porId[origen];
       if (r.carga) return terminarOrden("manos_llenas");
       r.tarea = { wps: ruta(e.puerta), op: OP, fin: () => {
-        if ((e.stock[mat] || 0) > 0) { e.stock[mat]--; r.carga = mat; return "ok"; }
+        if ((e.stock[mat] || 0) > 0) { e.stock[mat]--; e.entregado[mat] = (e.entregado[mat] || 0) + 1; r.carga = mat; r.cargaDesde = mundo.t; r.cargaOrigen = e.id; r.viajes++; return "ok"; }
         mundo.vacios++; mundo.ultimoVacio = { id: e.id, mat };
         return "viaje_vacio";
       } };
@@ -954,7 +1111,7 @@ onmessage = async (ev) => {
         if (e.tipo === "bodega") { e.stock[mat] = (e.stock[mat] || 0) + 1; e.recibido[mat] = (e.recibido[mat] || 0) + 1; r.carga = null; return "ok"; }
         if (e.acepta !== mat) return "rechazado";
         if (e.entrada >= e.cap) { e.derrames++; e.suelo.push(mat); mundo.derrames++; r.carga = null; return "derrame"; }
-        e.entrada++; e.recibido[mat] = (e.recibido[mat] || 0) + 1; r.carga = null; return "ok";
+        e.entrada++; e.recibido[mat] = (e.recibido[mat] || 0) + 1; e.cola.push({ tRecogida: r.cargaDesde ?? mundo.t, tEntrega: mundo.t, origen: r.cargaOrigen }); r.carga = null; return "ok";
       } };
     } else if (verbo === "esperar") {
       r.tarea = { wps: [], op: args[0], fin: () => "ok" };
@@ -1000,7 +1157,7 @@ onmessage = async (ev) => {
     return ((e.recibido && e.recibido[m.mat]) || 0) >= m.n;
   }
   function faltantes() {
-    return RETOS[retoIdx].metas.filter(m => !metaCumplida(m)).map(m => {
+    return retoActual().metas.filter(m => !metaCumplida(m)).map(m => {
       const e = mundo.porId[m.id];
       if (m.tipo === "vaciar") return `${m.id} aún tiene ${e.stock[m.mat]} de ${m.mat}`;
       return `${m.id} ${m.n - ((e.recibido[m.mat]) || 0)} de ${m.mat}`;
@@ -1009,7 +1166,7 @@ onmessage = async (ev) => {
 
   function evaluar() {
     if (!mundo.activo || mundo.fin) return;
-    const reto = RETOS[retoIdx];
+    const reto = retoActual();
     if (reto.maxDerrames != null && mundo.derrames > reto.maxDerrames) {
       const e = mundo.entidades.find(x => x.derrames > 0);
       return terminar("fallo", "derrame", `Se derramó ${e.suelo[e.suelo.length - 1]} en ${e.id}: su entrada estaba llena. Este reto no admite derrames.`);
@@ -1043,7 +1200,7 @@ onmessage = async (ev) => {
     cerrarPrograma();
     cerrarHoja();
     intento++;
-    mundo = crearMundo(RETOS[retoIdx], intento);
+    mundo = crearMundo(retoActual(), intento);
     mundo.activo = true;
     lineaCorre = lineaErr = null;
     limpiarConsola();
@@ -1089,7 +1246,10 @@ onmessage = async (ev) => {
       llamada = { id: m.id, linea: m.linea, texto };
       iniciarOrden(m.verbo, m.args);
     } else if (m.type === "log") {
-      consola("log", m.linea, m.texto);
+      const nivel = m.nivel || "log";
+      mundo.consolas[nivel] = (mundo.consolas[nivel] || 0) + 1;
+      consola(nivel === "warn" ? "warn" : nivel === "error" ? "bad" : "log", m.linea, nivel === "log" ? m.texto : escapar(`${nivel}: ${m.texto}`));
+      globoR1 = { nivel, texto: m.texto.slice(0, 80), hasta: performance.now() + 2600 };
     } else if (m.type === "done") {
       ejec.acabado = true;
       evaluar();
@@ -1134,22 +1294,29 @@ onmessage = async (ev) => {
     mundo.revelado = true;
     cerrarPrograma();
     if (resultado !== "error") { lineaCorre = null; pintarMarcas(); }
-    const reto = RETOS[retoIdx];
+    const reto = retoActual();
     const lineas = codigo.split("\n").filter(l => l.trim() && !l.trim().startsWith("//")).length;
     telemetria.push({
       sandbox: "02_tres_vistas", reto: retoIdx + 1, intento, inicio, modo: modoIntento, idioma,
       resultado, motivo, mensaje: texto, linea: linea ?? null,
       tiempoJuego: +mundo.t.toFixed(2), lineas, bloques: modoIntento === "js" && programa.fuente === "texto" ? null : contarNodos(programa.modelo.cuerpo),
       derrames: mundo.derrames, viajesVacios: mundo.vacios, stockOculto: mundo.stockOculto,
-      verbos: mundo.verbos, resultados: mundo.resultados, codigo,
+      verbos: mundo.verbos, resultados: mundo.resultados, consolas: mundo.consolas, inserciones: { ...telemetriaUi }, codigo,
+      escenario: retoIdx === IDX_PROPIO ? propio : undefined,
     });
+    telemetriaUi = { dobleClic: 0, arrastre: 0, arrastreBloques: 0 };
     guardado.escribir("telemetria", telemetria);
     const revela = mundo.stockOculto != null ? ` Esta vez llegaron ${mundo.stockOculto} de cobre; en el próximo intento llegará otra cantidad.` : "";
     if (resultado === "victoria") {
       if (!hechos.includes(retoIdx)) { hechos.push(retoIdx); guardado.escribir("hechos", hechos); }
       const sig = retoIdx + 1 < RETOS.length;
       const base = reto.maxDerrames === 0 && reto.tiempoMax ? "Sin derrames y dentro del tiempo." : reto.maxDerrames === 0 ? "Sin derrames." : reto.maxVacios === 0 ? "Sin viajes vacíos." : reto.tiempoMax ? `Dentro del tiempo (${reto.tiempoMax} s).` : "Todo entregado.";
-      mostrarBanner("victoria", "Reto cumplido", escapar(base + revela),
+      // El número a optimizar: el tiempo de juego, contra el récord de este reto.
+      const ant = records[retoIdx];
+      let rec;
+      if (ant == null || mundo.t < ant - 1e-9) { records[retoIdx] = r2(mundo.t); guardado.escribir("records", records); rec = ant == null ? `Primer récord: ${coma(mundo.t)} s` : `Nuevo récord: ${coma(mundo.t)} s (antes ${coma(ant)} s)`; }
+      else rec = `Récord ${coma(ant)} s · esta vez +${coma(mundo.t - ant)} s`;
+      mostrarBanner("victoria", "Reto cumplido", escapar(base + revela) + `<br><b class="record">${escapar(rec)}</b>`,
         `${mundo.t.toFixed(1)} s de juego · ${lineas} líneas de JS · intento ${intento}`,
         sig ? [["Siguiente reto", "primario", () => elegirReto(retoIdx + 1)], ["Otra vez", "", ocultarBanner]] : [["Otra vez", "primario", ocultarBanner]]);
       pintarRetos();
@@ -1171,7 +1338,7 @@ onmessage = async (ev) => {
   }
 
   // ---------- Bucle de juego ----------
-  let ultimo = performance.now(), acum = 0;
+  let ultimo = performance.now(), acum = 0, ultVivos = 0;
   function bucle(now) {
     const real = Math.min(0.25, (now - ultimo) / 1000);
     ultimo = now;
@@ -1184,6 +1351,7 @@ onmessage = async (ev) => {
     }
     dibujar();
     pintarHud();
+    if (now - ultVivos > 200) { ultVivos = now; actualizarVivos(); }
     if (marcasSucias) pintarMarcasYa();
     if (eventosSucios) pintarEventosYa();
     requestAnimationFrame(bucle);
@@ -1195,7 +1363,7 @@ onmessage = async (ev) => {
   let colores = {};
   function leerColores() {
     const s = getComputedStyle(document.documentElement);
-    for (const k of ["bg", "surface", "ink", "muted", "line", "grid", "building", "building-top", "edge", "accent", "accent-soft", "cobre", "silicio", "ok", "bad", "bad-soft"])
+    for (const k of ["bg", "surface", "ink", "muted", "line", "grid", "building", "building-top", "edge", "accent", "accent-soft", "cobre", "silicio", "ok", "warn", "bad", "bad-soft"])
       colores[k] = s.getPropertyValue(`--${k}`).trim();
   }
   leerColores();
@@ -1250,6 +1418,7 @@ onmessage = async (ev) => {
       ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px, py, T * .38, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, r.tarea.op) / (r.tarea.op0 || OP)), false); ctx.stroke();
     }
+    if (seleccionMapa === "R1") { ctx.strokeStyle = c.accent; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(px, py, T * .36, 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = c.ink; ctx.beginPath(); ctx.arc(px, py, T * .28, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = c.surface; ctx.font = `700 ${Math.max(T * .2, 10)}px Archivo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("R1", px, py + 1);
@@ -1257,6 +1426,19 @@ onmessage = async (ev) => {
       ctx.fillStyle = c[r.carga]; ctx.strokeStyle = c.surface; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(px + T * .24, py - T * .24, T * .13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
+    if (globoR1 && performance.now() < globoR1.hasta) dibujarGlobo(globoR1, px, py - T * .42, W);
+  }
+  function dibujarGlobo(g, x, y, W) {
+    const c = colores;
+    ctx.font = `600 12px "JetBrains Mono", monospace`;
+    let txt = g.texto;
+    while (txt.length > 4 && ctx.measureText(txt).width > W * .6) txt = txt.slice(0, -2);
+    if (txt !== g.texto) txt += "…";
+    const w = ctx.measureText(txt).width + 16, h = 24, bx = Math.min(W - w - 4, Math.max(4, x - w / 2)), by = Math.max(4, y - h - 8);
+    ctx.fillStyle = c.surface; ctx.strokeStyle = g.nivel === "warn" ? c.warn : g.nivel === "error" ? c.bad : g.nivel === "info" ? c.accent : c.edge; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, w, h, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 5, by + h); ctx.lineTo(x, by + h + 7); ctx.lineTo(x + 5, by + h); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = c.ink; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(txt, bx + 8, by + h / 2 + 1);
   }
 
   function dibujarEntidad(e, T) {
@@ -1325,7 +1507,8 @@ onmessage = async (ev) => {
       cerrarHoja();
       return;
     }
-    seleccionMapa = e ? e.id : null;
+    const fx = (ev.clientX - rect.left) / T, fy = (ev.clientY - rect.top) / T, r = mundo.robot;
+    seleccionMapa = e ? e.id : Math.hypot(fx - (r.x + .5), fy - (r.y + .5)) < .5 ? "R1" : null;
     pintarInfo();
   });
 
@@ -1336,13 +1519,13 @@ onmessage = async (ev) => {
   const claseRes = (r) => r === "ok" ? "ok" : r === "derrame" ? "bad" : "warn";
 
   function pintarRetos() {
-    $("retos").innerHTML = RETOS.map((r, i) =>
-      `<button type="button" class="reto-btn${hechos.includes(i) ? " hecho" : ""}" aria-pressed="${i === retoIdx}" data-i="${i}"><span class="n">${hechos.includes(i) ? "✓" : i + 1}</span>${r.titulo}${r.nuevo ? ` <span class="nuevo">nuevo</span>` : ""}</button>`).join("");
+    $("retos").innerHTML = [...RETOS, propio].map((r, i) =>
+      `<button type="button" class="reto-btn${hechos.includes(i) ? " hecho" : ""}" aria-pressed="${i === retoIdx}" data-i="${i}"><span class="n">${hechos.includes(i) ? "✓" : i === IDX_PROPIO ? "+" : i + 1}</span>${escapar(i === IDX_PROPIO ? `✎ ${r.titulo}` : r.titulo)}${r.nuevo ? ` <span class="nuevo">nuevo</span>` : ""}</button>`).join("");
   }
   $("retos").addEventListener("click", (ev) => { const b = ev.target.closest(".reto-btn"); if (b) elegirReto(+b.dataset.i); });
 
   function programaInicial(i) {
-    const modelo = raizDe(RETOS[i].inicial);
+    const modelo = raizDe(retoDe(i).inicial);
     return { modelo, texto: generar(modelo).codigo, fuente: "modelo" };
   }
   function cargarPrograma(i) {
@@ -1350,7 +1533,14 @@ onmessage = async (ev) => {
     if (!p || !p.modelo) return programaInicial(i);
     // Renumera ids para que no choquen entre retos.
     const modelo = raizDe(p.modelo.cuerpo);
-    return { modelo, texto: p.texto ?? generar(modelo).codigo, fuente: p.fuente || "modelo" };
+    return { modelo, texto: p.texto ?? generar(modelo).codigo, fuente: p.fuente || "modelo", comentado: p.comentado ?? null };
+  }
+  const esInicial = (modelo) => generar(modelo).codigo === generar(raizDe(retoActual().inicial)).codigo;
+  // En JavaScript el programa de partida llega comentado: así es fácil quedarse con una parte o escribir otro.
+  function comentarInicial(codigo) {
+    if (!codigo.trim()) return "/* Programa de R1. Escribe aquí o haz doble clic en el inspector para insertar. */\n";
+    return "/* Programa de partida, comentado. Quita las // (Ctrl+/ o el botón «//»)\n * o escribe el tuyo. En bloques sigue activo. */\n"
+      + codigo.replace(/\n$/, "").split("\n").map(l => "// " + l).join("\n") + "\n";
   }
   function guardarPrograma() { guardado.escribir(`prog-${retoIdx}`, programa); }
 
@@ -1359,7 +1549,7 @@ onmessage = async (ev) => {
     cerrarHoja();
     retoIdx = i; guardado.escribir("reto", i);
     intento = telemetria.filter(t => t.reto === i + 1).length;
-    const reto = RETOS[i];
+    const reto = retoDe(i);
     mundo = crearMundo(reto, intento + 1);
     programa = cargarPrograma(i);
     cursor = { padre: "raiz", rama: "cuerpo", idx: programa.modelo.cuerpo.length };
@@ -1370,11 +1560,12 @@ onmessage = async (ev) => {
     ocultarBanner(); limpiarConsola(); pintarRetos(); pintarInfo(); pintarEventos(); pintarResumen(); pintarControles();
     metasClave = "";
     aplicarModo(modo, true);
+    pintarFormReto();
   }
 
   let metasClave = "";
   function pintarHud() {
-    const reto = RETOS[retoIdx];
+    const reto = retoActual();
     const $r = $("reloj");
     $r.textContent = reto.tiempoMax ? `t ${mundo.t.toFixed(1)} / ${reto.tiempoMax} s` : `t ${mundo.t.toFixed(1)} s`;
     $r.classList.toggle("tarde", !!reto.tiempoMax && mundo.t > reto.tiempoMax);
@@ -1394,22 +1585,157 @@ onmessage = async (ev) => {
     if (reto.maxDerrames != null) html += `<span class="meta${mundo.derrames > reto.maxDerrames ? " rota" : ""}">derrames ${mundo.derrames}/${reto.maxDerrames}</span>`;
     if (reto.maxVacios != null) html += `<span class="meta${mundo.vacios > reto.maxVacios ? " rota" : ""}">viajes vacíos ${mundo.vacios}/${reto.maxVacios}</span>`;
     if (reto.tiempoMax != null) html += `<span class="meta${mundo.t > reto.tiempoMax ? " rota" : ""}">≤ ${reto.tiempoMax} s</span>`;
+    if (records[retoIdx] != null) html += `<span class="meta" style="border-style:dashed" title="El número a optimizar">récord ${coma(records[retoIdx])} s</span>`;
     $("metas").innerHTML = html;
-    if (seleccionMapa) pintarInfo();
+  }
+
+  // ---------- Inspector: código a la izquierda, datos a la derecha, métricas aparte ----------
+  // data-ins es el texto para JavaScript; data-bloque, el bloque que añade en bloques; data-val, el valor que rellena un hueco abierto.
+  function tk(tipo, texto, ins, o = {}) {
+    const attr = (k, v) => v === undefined ? "" : ` data-${k}="${escapar(typeof v === "string" ? v : JSON.stringify(v))}"`;
+    return `<button type="button" class="tk tk-${tipo}" draggable="true" data-ins="${escapar(ins)}" data-clave="${escapar(o.clave || ins)}"${attr("fin", o.fin)}${o.bloque ? attr("bloque", JSON.stringify(o.bloque)) : ""}${o.val !== undefined ? attr("val", JSON.stringify(o.val)) : ""}${o.vivo ? attr("vivo", o.vivo) : ""}>${escapar(texto)}</button>`;
+  }
+  const fila = (...p) => `<div class="fila-tk">${p.join(" ")}</div>`;
+  const nota = (t) => `<span class="nota">${t}</span>`;
+  const grupo = (titulo, ...filas) => `<div class="grupo-tk">${titulo ? `<div class="g">${titulo}</div>` : ""}${filas.join("")}</div>`;
+  const punto = (m) => `<i class="mat" style="background:var(--${m})"></i>`;
+  const q = (s) => JSON.stringify(s);
+  const htmlMetricas = (m) => m.map(([k, v]) => `<span class="m">${escapar(k)} <b>${escapar(v)}</b></span>`).join("");
+  function htmlFicha(f) {
+    return `<div class="ficha"><span class="nota">Última pieza (#${f.n}, de ${escapar(f.origen || "?")}):</span>
+      <span class="tramo">viaje R1 <b>${coma(f.viaje)} s</b></span><span class="flecha">→</span>
+      <span class="tramo">espera <b>${coma(f.espera)} s</b></span><span class="flecha">→</span>
+      <span class="tramo">proceso <b>${coma(f.proceso)} s</b></span><span class="flecha">=</span>
+      <span class="tramo"><b>${coma(f.total)} s</b></span></div>`;
+  }
+  function estadoMaquina(e) { return e.procesando ? `procesando ${Math.round(e.progreso / e.tProceso * 100)} %` : e.entrada ? "por empezar" : "libre"; }
+  function metricasDe(id) {
+    if (id === "R1") { const r = mundo.robot; return [["viajes", r.viajes], ["caminando", `${coma(r.tCaminando)} s`], ["viajes vacíos", mundo.vacios], ["derrames", mundo.derrames]]; }
+    const e = mundo.porId[id];
+    if (e.tipo === "bodega") return [...MATERIALES.filter(m => e.entregado[m]).map(m => [`salió ${m}`, e.entregado[m]]), ...MATERIALES.filter(m => e.recibido[m]).map(m => [`entró ${m}`, e.recibido[m]])];
+    const medias = e.fichas.length ? coma(e.fichas.reduce((a, f) => a + f.total, 0) / e.fichas.length) + " s" : "—";
+    return [[e.produce, e.producido], ["ciclos", e.ciclos], ["ocupación", mundo.t ? `${Math.round(e.tOcupada / mundo.t * 100)} %` : "—"], ["tiempo medio por pieza", medias], ["derrames", e.derrames]];
+  }
+  function valorVivo(clave) {
+    const [id, p, x] = clave.split(":");
+    if (id === "R1") { const r = mundo.robot; return p === "carga" ? (r.carga ? q(r.carga) : "null") : `x ${coma(r.x)} · y ${coma(r.y)}`; }
+    const e = mundo.porId[id]; if (!e) return null;
+    if (p === "stock") return e.oculto && !mundo.revelado ? "?" : String(e.stock[x] || 0);
+    if (p === "entrada") return String(e.entrada);
+    if (p === "estado") return estadoMaquina(e);
+    return null;
   }
 
   function pintarInfo() {
-    const $i = $("info");
-    const e = seleccionMapa && mundo.porId[seleccionMapa];
-    if (!e) { $i.innerHTML = `<span>Toca un edificio para ver qué guarda.</span>`; return; }
-    let desc;
-    if (e.tipo === "bodega" && e.oculto && !mundo.revelado) desc = `${e.nombre} · tapada: el contenido cambia en cada intento. Mídelo con el sensor.`;
-    else if (e.tipo === "bodega") desc = `${e.nombre} · ` + (MATERIALES.filter(m => m in e.stock).map(m => `${m} ${e.stock[m]}`).join(" · ") || "vacía");
-    else desc = `${e.nombre} · acepta ${e.acepta} · entrada ${e.entrada}/${e.cap} · ${e.tProceso} s por pieza`;
-    $i.innerHTML = `<span><b>${e.id}</b> ${escapar(desc)}</span>` + (modo === "js" ? `<button type="button" class="btn chico" id="b-insertar-id">Insertar "${e.id}"</button>` : "");
-    const b = $("b-insertar-id");
-    if (b) { b.addEventListener("pointerdown", (ev) => ev.preventDefault()); b.addEventListener("click", () => insertarId(e.id)); }
+    const $i = $("inspector"), id = seleccionMapa;
+    if (!id || (id !== "R1" && !mundo.porId[id])) { $i.innerHTML = `<div class="pista-tk">Toca un edificio o a R1 en el plano para ver qué puedes usar de él en tu código.</div>`; return; }
+    let titulo, clase, c1, c2, extra = "";
+    if (id === "R1") {
+      titulo = "R1"; clase = "Robot";
+      c1 = grupo("Nombre", fila(tk("var", "yo", "yo"), nota("así se llama R1 en su propio programa")))
+        + grupo("Funciones",
+          fila(tk("fn", "yo.recoger(origen, material)", "await yo.recoger(/* origen */, /* material */);", { bloque: { t: "recoger" }, fin: '// → "ok" | "viaje_vacio" | "manos_llenas"' })),
+          fila(tk("fn", "yo.entregar(destino)", "await yo.entregar(/* destino */);", { bloque: { t: "entregar" }, fin: '// → "ok" | "rechazado" | "derrame" | "manos_vacias"' })),
+          fila(tk("fn", "yo.esperar(segundos)", "await yo.esperar(/* segundos */);", { bloque: { t: "esperar" } })),
+          fila(tk("fn", "yo.cuantos(lugar, material)", "await yo.cuantos(/* lugar */, /* material */)", { bloque: { t: "cond" } }), nota("→ número · sensor")));
+      c2 = grupo("", fila(nota("velocidad:"), `${VEL} casillas/s, en L`), fila(nota("recoger o entregar:"), `${coma(OP)} s`), fila(nota("lleva:"), `<span data-vivo="R1:carga">${mundo.robot.carga ? q(mundo.robot.carga) : "null"}</span>`, nota("(1 unidad como máximo)")),
+        fila(nota("posición:"), `<span class="nota" data-vivo="R1:pos">x ${coma(mundo.robot.x)} · y ${coma(mundo.robot.y)}</span>`));
+    } else {
+      const e = mundo.porId[id];
+      titulo = e.id; clase = e.nombre;
+      if (e.tipo === "bodega") {
+        const oculto = e.oculto && !mundo.revelado, mats = MATERIALES.filter(m => m in e.stock);
+        c1 = grupo("Nombre", fila(tk("str", q(e.id), q(e.id), { val: e.id, bloque: { t: "recoger", origen: e.id, mat: mats[0] || "cobre" } }), nota("los lugares se escriben como texto")))
+          + grupo(oculto ? "Contenido (tapado: cambia en cada intento)" : "Contenido", ...mats.map(m => fila(punto(m), tk("str", q(m), q(m), { val: m, bloque: { t: "recoger", origen: e.id, mat: m } }), `<span class="sep">=</span>`,
+            `<span class="tk-num" data-vivo="${e.id}:stock:${m}">${oculto ? "?" : e.stock[m]}</span>`)))
+          + grupo("Funciones",
+            fila(tk("fn", `yo.recoger(${q(e.id)}, material)`, `await yo.recoger(${q(e.id)}, /* material */);`, { bloque: { t: "recoger", origen: e.id, mat: mats[0] || "cobre" }, fin: '// → "ok" | "viaje_vacio" | "manos_llenas"' })),
+            fila(tk("fn", `yo.cuantos(${q(e.id)}, material)`, `await yo.cuantos(${q(e.id)}, /* material */)`, { bloque: { t: "cond", lugar: e.id, mat: mats[0] || "cobre", op: ">", n: 0 } }), nota("→ número · sensor")));
+        c2 = grupo("", fila(nota("tipo:"), "bodega"), fila(nota("acepta:"), "todo lo que le entregues"), fila(nota("guarda:"), mats.join(", ") || "nada"));
+      } else {
+        const unidad = e.produce.split(" ")[0];
+        c1 = grupo("Nombre", fila(tk("str", q(e.id), q(e.id), { val: e.id, bloque: { t: "entregar", destino: e.id } }), nota("los lugares se escriben como texto")))
+          + grupo("Entrada", fila(punto(e.acepta), tk("str", q(e.acepta), q(e.acepta), { val: e.acepta }), `<span class="sep">=</span>`, `<span class="tk-num" data-vivo="${e.id}:entrada">${e.entrada}</span>`, nota(`en espera, de ${e.cap} ${e.cap === 1 ? "hueco" : "huecos"}`)))
+          + grupo("Funciones",
+            fila(tk("fn", `yo.entregar(${q(e.id)})`, `await yo.entregar(${q(e.id)});`, { bloque: { t: "entregar", destino: e.id }, fin: '// → "ok" | "rechazado" | "derrame" | "manos_vacias"' })),
+            fila(tk("fn", `yo.cuantos(${q(e.id)}, ${q(e.acepta)})`, `await yo.cuantos(${q(e.id)}, ${q(e.acepta)})`, { bloque: { t: "cond", lugar: e.id, mat: e.acepta, op: "<", n: 1 } }), nota("→ cuántos esperan")));
+        c2 = grupo("", fila(nota("input:"), e.acepta), fila(nota("output:"), e.produce),
+          fila(nota("ratio:"), `${e.ratio} ${unidad} por cada 1 ${e.acepta}`), fila(nota("velocidad:"), `${coma(e.tProceso)} s por ciclo`),
+          fila(nota("estado:"), `<span data-vivo="${e.id}:estado">${estadoMaquina(e)}</span>`));
+        if (e.fichas.length) extra = htmlFicha(e.fichas[e.fichas.length - 1]);
+      }
+    }
+    const m = metricasDe(id);
+    const dondeVa = modo === "js" ? "lo inserta donde está el cursor (también se puede arrastrar)" : "rellena el valor abierto o añade el bloque";
+    $i.innerHTML = `<div class="ins-cab"><h2>${escapar(titulo)}</h2><span class="clase">${escapar(clase)}</span></div>
+      <div class="ins-cols"><div class="ins-col"><h3>Para tu código</h3>${c1}</div><div class="ins-col"><h3>Datos</h3>${c2}</div></div>
+      ${m.length || extra ? `<div class="grupo-tk"><div class="metricas-tit">Métricas de este intento</div><div class="metricas" data-metricas>${htmlMetricas(m)}</div><div data-ficha>${extra}</div></div>` : ""}
+      <div class="leyenda-tk"><span class="tk-var">variable</span><span class="tk-fn">función</span><span class="tk-num">número</span><span class="tk-str">texto</span><span style="font-family:var(--f-body);font-weight:400">· doble clic: ${dondeVa}</span></div>
+      <div class="pista-tk" id="pista-tk"></div>`;
+    fichaVista = id !== "R1" && mundo.porId[id].fichas ? mundo.porId[id].fichas.length : 0;
   }
+  let fichaVista = 0;
+  function actualizarVivos() {
+    const $i = $("inspector"), id = seleccionMapa;
+    if (!id || (id !== "R1" && !mundo.porId[id])) return;
+    for (const el of $i.querySelectorAll("[data-vivo]")) { const v = valorVivo(el.dataset.vivo); if (v != null && el.textContent !== v) el.textContent = v; }
+    const met = $i.querySelector("[data-metricas]"); if (met) { const h = htmlMetricas(metricasDe(id)); if (met.innerHTML !== h) met.innerHTML = h; }
+    const e = mundo.porId[id];
+    if (e && e.fichas && e.fichas.length !== fichaVista) { fichaVista = e.fichas.length; const f = $i.querySelector("[data-ficha]"); if (f) f.innerHTML = e.fichas.length ? htmlFicha(e.fichas[e.fichas.length - 1]) : ""; }
+  }
+
+  // Doble clic (o doble toque) usa el token; un clic solo lo arma y explica qué hará.
+  let armado = { clave: null, t: 0 };
+  $("inspector").addEventListener("click", (ev) => {
+    const t = ev.target.closest(".tk"); if (!t) return;
+    const $p = $("pista-tk"), ahora = performance.now();
+    document.querySelectorAll(".tk.armado").forEach(x => x.classList.remove("armado"));
+    if (armado.clave === t.dataset.clave && ahora - armado.t < 550) {
+      armado = { clave: null, t: 0 };
+      const msg = usarToken(t);
+      telemetriaUi.dobleClic++;
+      t.classList.add("hecho"); setTimeout(() => t.classList.remove("hecho"), 400);
+      if ($p) $p.innerHTML = msg;
+    } else {
+      armado = { clave: t.dataset.clave, t: ahora };
+      t.classList.add("armado");
+      if ($p) $p.innerHTML = modo === "js" ? `Doble clic inserta <code>${escapar(t.dataset.ins)}</code> donde está el cursor.`
+        : t.dataset.bloque ? "Doble clic añade el bloque que corresponde, o rellena el valor que tengas abierto." : "Toca un valor de un bloque y luego haz doble clic aquí para ponerlo.";
+    }
+  });
+  function usarToken(t) {
+    const val = t.dataset.val ? JSON.parse(t.dataset.val) : undefined, bloque = t.dataset.bloque ? JSON.parse(t.dataset.bloque) : null;
+    if (ejec) return "Detén el programa para editarlo.";
+    if (modo === "js") { insertarRef(t.dataset.ins, t.dataset.fin); return `Insertado <code>${escapar(t.dataset.ins)}</code>.`; }
+    if (slotAbierto && val !== undefined && opcionesCampo(slotAbierto.campo).includes(val)) {
+      fijarCampo(slotAbierto.id, slotAbierto.campo, val); cerrarHoja(); return `Puesto <code>${escapar(String(val))}</code> en el bloque.`;
+    }
+    if (bloque) return agregarDesdeToken(bloque);
+    return "Toca un valor de un bloque y luego haz doble clic aquí para ponerlo.";
+  }
+  function agregarDesdeToken(b) {
+    const lad = retoActual().ladrillos;
+    let t = b.t, extra = { ...b };
+    delete extra.t;
+    if (t === "cond") {
+      t = lad.includes("si") ? "si" : lad.includes("mientras") ? "mientras" : null;
+      if (!t) return "Este reto no tiene bloques con condición.";
+      const n0 = nuevoLadrillo(t);
+      extra = Object.keys(b).length > 1 ? { cond: { lugar: b.lugar, mat: b.mat, op: b.op, n: b.n } } : { cond: n0.cond };
+    }
+    if (!lad.includes(t)) return "Ese bloque no está en este reto.";
+    const n = nuevoLadrillo(t);
+    Object.assign(n, extra);
+    agregarNodo(n);
+    return "Bloque añadido donde está la línea azul.";
+  }
+  document.addEventListener("dragstart", (ev) => {
+    const t = ev.target.closest && ev.target.closest(".tk[data-ins]"); if (!t) return;
+    if (modo !== "js") { ev.preventDefault(); return; }
+    ev.dataTransfer.setData("text/plain", t.dataset.ins); ev.dataTransfer.effectAllowed = "copy";
+    $("editor").classList.add("soltar");
+  });
+  document.addEventListener("dragend", () => $("editor").classList.remove("soltar"));
 
   function pintarControles() {
     const corriendo = !!ejec;
@@ -1427,7 +1753,7 @@ onmessage = async (ev) => {
   $("b-vel").addEventListener("click", () => { velocidad = velocidad === 1 ? 2 : velocidad === 2 ? 4 : 1; pintarControles(); });
   $("b-reiniciar").addEventListener("click", () => {
     if (ejec) terminar("detenido", "reinicio", null);
-    mundo = crearMundo(RETOS[retoIdx], intento + 1); lineaCorre = lineaErr = null; pintarMarcas(); ocultarBanner(); metasClave = ""; pintarInfo();
+    mundo = crearMundo(retoActual(), intento + 1); lineaCorre = lineaErr = null; pintarMarcas(); ocultarBanner(); metasClave = ""; pintarInfo();
   });
   let confirmarRestaurar = false;
   $("b-restaurar").addEventListener("click", (ev) => {
@@ -1439,12 +1765,12 @@ onmessage = async (ev) => {
   });
 
   // Pestañas
-  const TABS = ["programa", "registro", "ayuda"];
-  document.querySelector(".tabs").addEventListener("click", (ev) => {
-    const b = ev.target.closest(".tab"); if (!b) return;
-    for (const t of TABS) { const on = `t-${t}` === b.id; $(`t-${t}`).setAttribute("aria-selected", on); $(`v-${t}`).hidden = !on; }
-    if (b.id === "t-programa" && modo === "js") medirEditor();
-  });
+  const TABS = ["programa", "registro", "ayuda", "reto"];
+  function abrirPestana(t) {
+    for (const x of TABS) { const on = x === t; $(`t-${x}`).setAttribute("aria-selected", on); $(`v-${x}`).hidden = !on; }
+    if (t === "programa" && modo === "js") medirEditor();
+  }
+  document.querySelector(".tabs").addEventListener("click", (ev) => { const b = ev.target.closest(".tab"); if (b) abrirPestana(b.id.slice(2)); });
 
   // Banner
   function mostrarBanner(tipo, titulo, html, stats, acciones) {
@@ -1517,9 +1843,11 @@ onmessage = async (ev) => {
 
   function aplicarModo(nuevo, forzar) {
     if (ejec && !forzar) return;
+    // Si el texto sigue siendo el programa de partida comentado, los bloques siguen siendo los de partida.
+    if (nuevo !== "js" && programa.fuente === "texto" && programa.comentado != null && programa.texto === programa.comentado) programa.fuente = "modelo";
     if (nuevo !== "js" && programa.fuente === "texto") {
       try {
-        programa.modelo = parsear($codigo.value);
+        programa.modelo = parsear(programa.texto);
         programa.fuente = "modelo";
         cursor = { padre: "raiz", rama: "cuerpo", idx: programa.modelo.cuerpo.length };
         seleccionBloque = null;
@@ -1540,7 +1868,11 @@ onmessage = async (ev) => {
         return;
       }
     }
-    if (nuevo === "js" && programa.fuente === "modelo") programa.texto = generar(programa.modelo).codigo;
+    if (nuevo === "js" && programa.fuente === "modelo") {
+      const g = generar(programa.modelo).codigo;
+      if (esInicial(programa.modelo)) { programa.texto = comentarInicial(g); programa.fuente = "texto"; programa.comentado = programa.texto; }
+      else { programa.texto = g; programa.comentado = null; }
+    }
     modo = nuevo; guardado.escribir("modo", modo);
     aviso(null);
     for (const b of document.querySelectorAll(".modo")) b.setAttribute("aria-checked", b.dataset.modo === modo);
@@ -1574,6 +1906,7 @@ onmessage = async (ev) => {
 
   // ---------- Paleta ----------
   const ATAJOS_JS = [
+    { t: "// comentar", comentar: true },
     { t: "recoger", b: 'await yo.recoger("ENT-1", "cobre");' },
     { t: "entregar", b: 'await yo.entregar("FUN");' },
     { t: "for", b: "for (let i = 0; i < 3; i++) {\n  \n}" },
@@ -1581,6 +1914,7 @@ onmessage = async (ev) => {
     { t: "if / else", b: 'if (await yo.cuantos("FUN", "cobre") < 1) {\n  \n} else {\n  \n}' },
     { t: "cuantos", b: 'await yo.cuantos("ENT-1", "cobre")', enLinea: true },
     { t: "esperar", b: "await yo.esperar(2);" },
+    { t: "console.warn", b: 'console.warn("aviso");' },
   ];
   function pintarPaleta() {
     const $p = $("paleta");
@@ -1591,7 +1925,7 @@ onmessage = async (ev) => {
       return;
     }
     const tx = TXT[idioma].paleta;
-    $p.innerHTML = RETOS[retoIdx].ladrillos.map(t => `<button type="button" class="ladrillo ${CATEGORIA[t]}" data-ladrillo="${t}">${escapar(tx[t])}</button>`).join("");
+    $p.innerHTML = retoActual().ladrillos.map(t => `<button type="button" class="ladrillo ${CATEGORIA[t]}" data-ladrillo="${t}">${escapar(tx[t])}</button>`).join("");
   }
   const $paleta = $("paleta");
   $paleta.addEventListener("pointerdown", (ev) => { if (modo === "js" && ev.target.closest(".atajo")) ev.preventDefault(); });
@@ -1602,7 +1936,8 @@ onmessage = async (ev) => {
     const b = ev.target.closest(".atajo"); if (!b) return;
     if (b.dataset.m) return insertarId(b.dataset.m);
     const a = ATAJOS_JS[+b.dataset.js];
-    if (a.enLinea) insertar(a.b); else insertarBloque(a.b);
+    if (a.comentar) alternarComentario();
+    else if (a.enLinea) insertar(a.b); else insertarBloque(a.b);
   });
 
   // ---------- Edición de bloques ----------
@@ -1628,8 +1963,8 @@ onmessage = async (ev) => {
     guardarPrograma();
     pintarEdicion();
   }
-  function agregarLadrillo(t) {
-    const n = nuevoLadrillo(t);
+  function agregarLadrillo(t) { agregarNodo(nuevoLadrillo(t)); }
+  function agregarNodo(n) {
     const lista = listaDe(programa.modelo, cursor.padre, cursor.rama);
     const idx = Math.min(cursor.idx, lista.length);
     lista.splice(idx, 0, n);
@@ -1742,7 +2077,7 @@ onmessage = async (ev) => {
   function htmlCursor() { return `<div class="cursor" aria-hidden="true"><span>${escapar(TXT[idioma].cursor)}</span></div>`; }
   function htmlLista(lista, padre, rama) {
     const conCursor = (i) => !ejec && cursor.padre === padre && cursor.rama === rama && cursor.idx === i ? htmlCursor() : "";
-    let html = `<div class="lista">`;
+    let html = `<div class="lista" data-padre="${padre}" data-rama="${rama}">`;
     if (!lista.length && padre !== "raiz") html += `<div class="vacio" data-accion="vacio" data-padre="${padre}" data-rama="${rama}">${escapar(TXT[idioma].vacio)}</div>`;
     lista.forEach((n, i) => { html += conCursor(i) + htmlNodo(n); });
     html += conCursor(lista.length) + `</div>`;
@@ -1750,8 +2085,8 @@ onmessage = async (ev) => {
   }
   function htmlNodo(n) {
     const tx = TXT[idioma], cat = CATEGORIA[n.t], sel = seleccionBloque === n.id ? " sel" : "";
-    if (!esContenedor(n)) return `<div class="fila simple ${cat}${sel}" data-accion="fila" data-parte="simple" data-id="${n.id}" data-nodo="${n.id}">${piezas(n, tx[n.t])}</div>`;
-    let html = `<div class="nodo contenedor${sel}" data-nodo-cont="${n.id}">`;
+    if (!esContenedor(n)) return `<div class="fila simple ${cat}${sel}" data-accion="fila" data-parte="simple" data-id="${n.id}" data-nodo="${n.id}" data-item="${n.id}">${piezas(n, tx[n.t])}</div>`;
+    let html = `<div class="nodo contenedor${sel}" data-nodo-cont="${n.id}" data-item="${n.id}">`;
     html += `<div class="fila cabeza ${cat} ${n.t}" data-accion="fila" data-parte="cabeza" data-id="${n.id}" data-nodo="${n.id}">${piezas(n, tx[n.t])}</div>`;
     html += `<div class="cuerpo">${htmlLista(n.cuerpo, n.id, "cuerpo")}</div>`;
     if (n.t === "si") {
@@ -1811,6 +2146,129 @@ onmessage = async (ev) => {
     }
     pintarEdicion();
   });
+
+  // ---------- Arrastrar y soltar (bloques y pseudocódigo) ----------
+  // Ratón: arrastrar más de 6 px. Táctil: mantener pulsado un bloque 0,28 s; los ladrillos de la paleta, arrastrar hacia arriba o abajo.
+  let arrastre = null, suprimirClicHasta = 0;
+  const $linea = document.createElement("div"); $linea.className = "soltar-linea"; $linea.hidden = true;
+  function posibleArrastre(ev, fuente, el) {
+    if (ejec || modo === "js" || ev.button > 0) return;
+    arrastre = { fuente, el, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, activo: false, tactil: ev.pointerType !== "mouse", id: ev.pointerId };
+    if (arrastre.tactil && fuente.id) arrastre.temporizador = setTimeout(() => { if (arrastre && !arrastre.activo) activarArrastre(); }, 280);
+  }
+  $prog.addEventListener("pointerdown", (ev) => {
+    if (ev.target.closest(".slot")) return;
+    const f = ev.target.closest(".fila[data-id]"); if (!f) return;
+    const item = $prog.querySelector(`[data-item="${f.dataset.id}"]`);
+    posibleArrastre(ev, { id: f.dataset.id }, item || f);
+  });
+  $paleta.addEventListener("pointerdown", (ev) => {
+    const l = ev.target.closest("[data-ladrillo]"); if (l) posibleArrastre(ev, { nuevo: l.dataset.ladrillo }, l);
+  });
+  document.addEventListener("pointermove", (ev) => {
+    const a = arrastre; if (!a || ev.pointerId !== a.id) return;
+    a.x = ev.clientX; a.y = ev.clientY;
+    const dx = a.x - a.x0, dy = a.y - a.y0, d = Math.hypot(dx, dy);
+    if (!a.activo) {
+      if (!a.tactil) { if (d > 6) activarArrastre(); }
+      else if (a.fuente.nuevo && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) activarArrastre();
+      else if (d > 10) cancelarArrastre();
+      return;
+    }
+    moverArrastre();
+  });
+  document.addEventListener("pointerup", (ev) => { if (arrastre && ev.pointerId === arrastre.id) soltarArrastre(); });
+  document.addEventListener("pointercancel", (ev) => { if (arrastre && ev.pointerId === arrastre.id) cancelarArrastre(); });
+  // Mientras se arrastra, el dedo no desplaza la página.
+  document.addEventListener("touchmove", (ev) => {
+    const a = arrastre; if (!a) return;
+    if (a.activo) { ev.preventDefault(); return; }
+    if (a.fuente.nuevo && ev.touches[0]) { const dx = ev.touches[0].clientX - a.x0, dy = ev.touches[0].clientY - a.y0; if (Math.abs(dy) > Math.abs(dx)) ev.preventDefault(); }
+  }, { passive: false });
+  document.addEventListener("click", (ev) => { if (performance.now() < suprimirClicHasta) { ev.stopPropagation(); ev.preventDefault(); } }, true);
+  function activarArrastre() {
+    const a = arrastre;
+    clearTimeout(a.temporizador);
+    a.activo = true;
+    cerrarHoja();
+    const f = document.createElement("div");
+    f.className = `fantasma ${a.fuente.nuevo ? $paleta.className : modo === "pseudo" ? "v-pseudo" : "v-bloques"}`;
+    const muestra = a.fuente.nuevo ? a.el : (a.el.querySelector(":scope > .fila.cabeza") || a.el);
+    f.appendChild(muestra.cloneNode(true));
+    f.style.width = `${Math.min(muestra.getBoundingClientRect().width, 340)}px`;
+    document.body.appendChild(f);
+    a.fantasma = f;
+    if (a.fuente.id) a.el.classList.add("arrastrando");
+    $prog.appendChild($linea);
+    moverArrastre();
+  }
+  function destinoEn(x, y) {
+    const r = $prog.getBoundingClientRect();
+    if (x < r.left - 40 || x > r.right + 40 || y < r.top - 30 || y > r.bottom + 30) return null;
+    const excl = arrastre.fuente.id ? $prog.querySelector(`[data-item="${arrastre.fuente.id}"]`) : null;
+    let mejor = null, dm = Infinity;
+    for (const lista of $prog.querySelectorAll(".lista[data-padre]")) {
+      if (excl && excl.contains(lista)) continue;
+      const lr = lista.getBoundingClientRect(), items = [...lista.children].filter(c => c.dataset.item);
+      const ys = items.length ? items.map(it => it.getBoundingClientRect().top - 2).concat(items[items.length - 1].getBoundingClientRect().bottom + 2) : [(lista.querySelector(".vacio") || lista).getBoundingClientRect().top + 14];
+      ys.forEach((yy, i) => {
+        const d = Math.abs(yy - y) + (x < lr.left - 6 ? 300 : 0) - lr.left * .01;
+        if (d < dm) { dm = d; mejor = { padre: lista.dataset.padre, rama: lista.dataset.rama, idx: i, y: yy, x: lr.left, w: lr.width }; }
+      });
+    }
+    return mejor;
+  }
+  function moverArrastre() {
+    const a = arrastre;
+    a.fantasma.style.transform = `translate(${a.x + 12}px, ${a.y + 10}px)`;
+    const pr = $paleta.getBoundingClientRect();
+    a.borrar = !!a.fuente.id && a.y >= pr.top - 8 && a.y <= pr.bottom + 8;
+    $paleta.classList.toggle("borrar", a.borrar);
+    a.destino = a.borrar ? null : destinoEn(a.x, a.y);
+    const r = $prog.getBoundingClientRect();
+    if (a.destino) {
+      $linea.hidden = false;
+      $linea.style.top = `${a.destino.y - r.top + $prog.scrollTop}px`;
+      $linea.style.left = `${a.destino.x - r.left + $prog.scrollLeft}px`;
+      $linea.style.width = `${a.destino.w}px`;
+    } else $linea.hidden = true;
+    if (a.y < r.top + 28 && a.y > r.top - 30) $prog.scrollTop -= 10; else if (a.y > r.bottom - 28 && a.y < r.bottom + 30) $prog.scrollTop += 10;
+  }
+  function limpiarArrastre(a) {
+    clearTimeout(a.temporizador);
+    if (a.fantasma) a.fantasma.remove();
+    a.el.classList.remove("arrastrando");
+    $paleta.classList.remove("borrar");
+    $linea.hidden = true; $linea.remove();
+  }
+  function cancelarArrastre() { const a = arrastre; arrastre = null; if (a) limpiarArrastre(a); }
+  function soltarArrastre() {
+    const a = arrastre; arrastre = null;
+    limpiarArrastre(a);
+    if (!a.activo) return;  // fue un toque: lo atiende el click de siempre
+    suprimirClicHasta = performance.now() + 80;
+    if (a.borrar) { borrar(a.fuente.id); telemetriaUi.arrastreBloques++; return; }
+    if (!a.destino) { pintarEdicion(); return; }
+    const { padre, rama, idx } = a.destino;
+    if (a.fuente.nuevo) insertarEn(nuevoLadrillo(a.fuente.nuevo), padre, rama, idx);
+    else moverA(a.fuente.id, padre, rama, idx);
+    telemetriaUi.arrastreBloques++;
+  }
+  function insertarEn(n, padre, rama, idx) {
+    listaDe(programa.modelo, padre, rama).splice(idx, 0, n);
+    seleccionBloque = n.id;
+    cursor = esContenedor(n) ? { padre: n.id, rama: "cuerpo", idx: 0 } : { padre, rama, idx: idx + 1 };
+    cambiado();
+  }
+  function moverA(id, padre, rama, idx) {
+    const l = buscar(programa.modelo, id), destino = listaDe(programa.modelo, padre, rama);
+    l.lista.splice(l.idx, 1);
+    if (l.lista === destino && l.idx < idx) idx--;
+    destino.splice(idx, 0, l.nodo);
+    seleccionBloque = id;
+    cursor = { padre, rama, idx: idx + 1 };
+    cambiado();
+  }
 
   // Línea en curso y errores, en la vista que toque.
   function marcarLinea(l) { lineaCorre = l; lineaErr = null; pintarMarcas(); }
@@ -1883,9 +2341,11 @@ onmessage = async (ev) => {
     clearTimeout(tGuardar); tGuardar = setTimeout(guardarPrograma, 400);
   });
   $codigo.addEventListener("scroll", pintarBanda);
+  $codigo.addEventListener("drop", () => { telemetriaUi.arrastre++; $("editor").classList.remove("soltar"); setTimeout(seleccionarHueco, 0); });
   new ResizeObserver(() => medirEditor()).observe($codigo);
   $codigo.addEventListener("keydown", (ev) => {
     if (ev.key === "Tab") { ev.preventDefault(); insertar("  "); }
+    else if (ev.key === "/" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); alternarComentario(); }
     else if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); ejec ? detener() : ejecutar(); }
     else if (ev.key === "Enter") {
       ev.preventDefault();
@@ -1895,13 +2355,63 @@ onmessage = async (ev) => {
       insertar("\n" + sangria);
     }
   });
-  function insertar(texto, cursorDesde) {
+  // Inserta con execCommand para que Ctrl+Z lo deshaga; si el navegador no lo permite, cambia el valor a mano.
+  function insertar(texto, selDesde, selHasta) {
     if ($codigo.readOnly) return;
-    const a = $codigo.selectionStart, b = $codigo.selectionEnd, v = $codigo.value;
-    $codigo.value = v.slice(0, a) + texto + v.slice(b);
-    const p = a + (cursorDesde == null ? texto.length : cursorDesde);
-    $codigo.setSelectionRange(p, p);
-    $codigo.dispatchEvent(new Event("input"));
+    $codigo.focus();
+    const a = $codigo.selectionStart;
+    let ok = false;
+    try { ok = document.execCommand("insertText", false, texto); } catch { ok = false; }
+    if (!ok) {
+      const v = $codigo.value, b = $codigo.selectionEnd;
+      $codigo.value = v.slice(0, a) + texto + v.slice(b);
+      $codigo.dispatchEvent(new Event("input"));
+    }
+    const p = a + (selDesde == null ? texto.length : selDesde);
+    $codigo.setSelectionRange(p, selHasta == null ? p : a + selHasta);
+  }
+  // Las funciones llegan con huecos /* … */ seleccionados: el siguiente doble clic en un valor los rellena.
+  const RE_HUECO = /\/\*\s*(?:material|origen|destino|lugar|segundos)\s*\*\//;
+  function seleccionarHueco() {
+    const v = $codigo.value, p = $codigo.selectionEnd;
+    const finLinea = v.indexOf("\n", p) < 0 ? v.length : v.indexOf("\n", p);
+    const re = new RegExp(RE_HUECO.source, "g"); re.lastIndex = p;
+    const m = re.exec(v);
+    if (m && m.index < finLinea) $codigo.setSelectionRange(m.index, m.index + m[0].length);
+  }
+  function insertarRef(ins, fin) {
+    abrirPestana("programa");
+    const v = $codigo.value, a = $codigo.selectionStart, b = $codigo.selectionEnd;
+    const finLinea = v.indexOf("\n", b) < 0 ? v.length : v.indexOf("\n", b);
+    let texto = ins;
+    if (/^".*"$/.test(texto) && v[a - 1] === '"' && v[b] === '"') texto = texto.slice(1, -1);
+    if (fin && !v.slice(b, finLinea).trim()) texto += " " + fin;
+    const h = texto.search(RE_HUECO);
+    if (h >= 0) insertar(texto, h, h + texto.slice(h).match(RE_HUECO)[0].length);
+    else { insertar(texto); seleccionarHueco(); }
+  }
+  // Comenta o descomenta con // las líneas elegidas; los bloques /* … */ no se tocan.
+  function alternarComentario() {
+    if ($codigo.readOnly) return;
+    const v = $codigo.value, a = $codigo.selectionStart;
+    let b = $codigo.selectionEnd;
+    if (b > a && v[b - 1] === "\n") b--;
+    const ini = v.lastIndexOf("\n", a - 1) + 1;
+    let fin = v.indexOf("\n", b); if (fin < 0) fin = v.length;
+    const lineas = v.slice(ini, fin).split("\n");
+    const bloque = (l) => /^\s*(\/\*|\*)/.test(l);
+    const utiles = lineas.filter(l => l.trim() && !bloque(l));
+    if (!utiles.length) return;
+    let nuevas;
+    if (utiles.every(l => /^\s*\/\//.test(l))) nuevas = lineas.map(l => bloque(l) ? l : l.replace(/^(\s*)\/\/ ?/, "$1"));
+    else {
+      const min = Math.min(...utiles.map(l => l.match(/^\s*/)[0].length));
+      nuevas = lineas.map(l => !l.trim() || bloque(l) ? l : l.slice(0, min) + "// " + l.slice(min));
+    }
+    const texto = nuevas.join("\n");
+    $codigo.focus();
+    $codigo.setSelectionRange(ini, fin);
+    insertar(texto, 0, texto.length);
   }
   // Inserta un bloque en su propia línea; si tiene una línea interior vacía, el cursor queda ahí.
   function insertarBloque(bloque) {
@@ -1920,6 +2430,110 @@ onmessage = async (ev) => {
     const a = $codigo.selectionStart, v = $codigo.value;
     if (v[a - 1] === '"' && v[a] === '"') insertar(id); else insertar(`"${id}"`);
   }
+
+  // ---------- Tu reto: el enunciado y las metas los pone el jugador ----------
+  const LIM = [["tiempoMax", "Tiempo máximo (s)"], ["maxDerrames", "Derrames máximos"], ["maxVacios", "Viajes vacíos máximos"]];
+  let borrador = null;  // reto que se ve en el formulario, todavía sin guardar
+  function pintarFormReto(d = retoActual()) {
+    borrador = JSON.parse(JSON.stringify(d));
+    const propioSel = retoIdx === IDX_PROPIO, dis = propioSel ? "" : "disabled";
+    const ids = d.entidades.map(e => e.id);
+    const sel = (k, opciones, actual, extra = "") => `<select data-k="${k}" ${extra}>${opciones.map(([v, t]) => `<option value="${escapar(v)}"${v === actual ? " selected" : ""}>${escapar(t)}</option>`).join("")}</select>`;
+    $("reto-aviso").hidden = propioSel;
+    $("reto-aviso").innerHTML = propioSel ? "" : `Este reto es fijo. Puedes copiarlo a «Tu reto» y cambiar el enunciado, las metas y el mapa. <button type="button" class="btn chico" id="reto-copiar">Usar como base de Tu reto</button>`;
+    $("reto-form").innerHTML = `
+      <fieldset ${dis}><legend>Enunciado</legend>
+        <label class="campo-f">Título<input id="rf-titulo" maxlength="50" value="${escapar(d.titulo)}"></label>
+        <label class="campo-f">Lo que pides (aparece arriba como objetivo)<textarea id="rf-objetivo">${escapar(d.objetivo)}</textarea></label>
+        <label class="campo-f">Pista cuando falle<input id="rf-pista" value="${escapar(d.pista || "")}"></label>
+      </fieldset>
+      <fieldset ${dis}><legend>Metas: lo que tiene que salir</legend>
+        <div class="filas-f">${d.metas.map((m, i) => `<div class="fila-f" data-meta="${i}">
+          <label class="campo-f">Tipo${sel("tipo", [["entregar", "llegar a"], ["vaciar", "vaciar"]], m.tipo === "vaciar" ? "vaciar" : "entregar")}</label>
+          <label class="campo-f">Edificio${sel("id", ids.map(x => [x, x]), m.id)}</label>
+          <label class="campo-f">Material${sel("mat", MATERIALES.map(x => [x, x]), m.mat)}</label>
+          <label class="campo-f">Cantidad<input data-k="n" type="number" min="1" max="30" value="${m.n ?? ""}" ${m.tipo === "vaciar" ? "disabled" : ""}></label>
+          <button type="button" class="btn chico" data-quitar-meta="${i}">Quitar</button></div>`).join("")}</div>
+        <div><button type="button" class="btn chico" id="rf-mas-meta">+ Meta</button></div>
+        <div class="dos">${LIM.map(([k, t]) => `<label class="campo-f">${t} (vacío = sin límite)<input id="rf-${k}" type="number" min="0" value="${d[k] ?? ""}"></label>`).join("")}</div>
+      </fieldset>
+      <fieldset ${dis}><legend>Mapa</legend>
+        ${propioSel ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end"><label class="campo-f">Partir del mapa de${sel("base", RETOS.map((r, i) => [String(i), `${i + 1} · ${r.titulo}`]), "", 'id="rf-base"')}</label><button type="button" class="btn chico" id="rf-cambiar-mapa">Cambiar mapa</button></div>` : ""}
+        <div class="filas-f">${d.entidades.map((e, i) => `<div class="fila-f" data-ent="${i}">
+          <label class="campo-f">${e.tipo === "bodega" ? "Bodega" : "Máquina"}<input data-k="id" maxlength="8" value="${escapar(e.id)}"></label>
+          ${e.tipo === "bodega"
+            ? MATERIALES.map(m => `<label class="campo-f">${m}<input data-k="stock-${m}" type="number" min="0" max="30" value="${e.stock[m] ?? ""}" placeholder="—"></label>`).join("") + `<label class="check"><input type="checkbox" data-k="oculto"${e.oculto ? " checked" : ""}> tapada</label>`
+            : `<label class="campo-f">Acepta${sel("acepta", MATERIALES.map(x => [x, x]), e.acepta)}</label><label class="campo-f">Huecos<input data-k="cap" type="number" min="1" max="8" value="${e.cap}"></label><label class="campo-f">s por pieza<input data-k="tProceso" type="number" min="0.5" max="30" step="0.5" value="${e.tProceso}"></label>`}
+        </div>`).join("")}</div>
+      </fieldset>
+      <fieldset ${dis}><legend>Bloques disponibles</legend>
+        <div style="display:flex;gap:4px 14px;flex-wrap:wrap">${["recoger", "entregar", "repetir", "esperar", "mientras", "si"].map(t => `<label class="check"><input type="checkbox" data-ladrillo-f="${t}"${d.ladrillos.includes(t) ? " checked" : ""}> ${escapar(TXT.es.paleta[t])}</label>`).join("")}</div>
+      </fieldset>
+      ${propioSel ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" class="btn primario" id="rf-guardar">Guardar y jugar</button>
+        <button type="button" class="btn" id="rf-json-copiar">Copiar JSON</button>
+      </div>
+      <details class="json"><summary>Pegar un reto en JSON</summary>
+        <textarea class="json" id="rf-json" aria-label="Reto en JSON"></textarea>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button type="button" class="btn chico" id="rf-json-aplicar">Aplicar</button><span class="fila-bajo" id="rf-json-msg"></span></div>
+      </details>` : ""}`;
+  }
+  function leerFormReto() {
+    const d = borrador, v = (id) => $(id).value;
+    d.titulo = v("rf-titulo").trim() || "Tu reto"; d.objetivo = v("rf-objetivo").trim(); d.pista = v("rf-pista").trim();
+    for (const [k] of LIM) d[k] = v(`rf-${k}`) === "" ? null : Number(v(`rf-${k}`));
+    d.metas = [...document.querySelectorAll("#reto-form [data-meta]")].map(f => {
+      const g = (k) => f.querySelector(`[data-k="${k}"]`).value;
+      return g("tipo") === "vaciar" ? { tipo: "vaciar", id: g("id"), mat: g("mat") } : { id: g("id"), mat: g("mat"), n: Number(g("n")) || 1 };
+    });
+    document.querySelectorAll("#reto-form [data-ent]").forEach(f => {
+      const e = d.entidades[+f.dataset.ent], g = (k) => f.querySelector(`[data-k="${k}"]`);
+      const viejo = e.id, nuevo = g("id").value.trim().toUpperCase() || viejo;
+      e.id = nuevo;
+      for (const m of d.metas) if (m.id === viejo) m.id = nuevo;
+      if (e.tipo === "bodega") {
+        e.stock = {}; for (const m of MATERIALES) { const x = g(`stock-${m}`).value; if (x !== "") e.stock[m] = Number(x); }
+        e.oculto = g("oculto").checked || undefined;
+      } else { e.acepta = g("acepta").value; e.cap = Number(g("cap").value); e.tProceso = Number(g("tProceso").value); }
+    });
+    d.ladrillos = [...document.querySelectorAll("#reto-form [data-ladrillo-f]")].filter(x => x.checked).map(x => x.dataset.ladrilloF);
+    return normalizarReto(d);
+  }
+  function guardarPropio(d) {
+    propio = d; guardado.escribir("propio", propio);
+    elegirReto(IDX_PROPIO); abrirPestana("reto");
+  }
+  $("v-reto").addEventListener("click", (ev) => {
+    const t = ev.target, id = t.id;
+    if (t.dataset.quitarMeta != null) { const d = leerFormReto(); d.metas.splice(+t.dataset.quitarMeta, 1); pintarFormReto(d); return; }
+    if (id === "rf-mas-meta") { const d = leerFormReto(); d.metas.push({ id: d.entidades.find(e => e.tipo === "maquina")?.id || d.entidades[0].id, mat: "cobre", n: 2 }); pintarFormReto(d); return; }
+    if (id === "rf-cambiar-mapa") {
+      const r = RETOS[+$("rf-base").value], d = leerFormReto();
+      pintarFormReto(normalizarReto({ ...d, entidades: JSON.parse(JSON.stringify(r.entidades)), robot: r.robot, metas: JSON.parse(JSON.stringify(r.metas)) }));
+      return;
+    }
+    if (id === "rf-guardar") { guardarPropio(leerFormReto()); abrirPestana("programa"); return; }
+    if (id === "reto-copiar") {
+      const r = retoActual();
+      guardado.escribir(`prog-${IDX_PROPIO}`, programa);
+      guardarPropio(normalizarReto({ ...JSON.parse(JSON.stringify(r)), titulo: `${r.titulo} (mío)` }));
+      return;
+    }
+    if (id === "rf-json-copiar") {
+      const txt = JSON.stringify(leerFormReto(), null, 2);
+      const plan = () => { $("rf-json").value = txt; $("rf-json").closest("details").open = true; $("rf-json").select(); };
+      try { navigator.clipboard.writeText(txt).then(() => { t.textContent = "Copiado"; setTimeout(() => t.textContent = "Copiar JSON", 1500); }, plan); } catch { plan(); }
+      return;
+    }
+    if (id === "rf-json-aplicar") {
+      try { guardarPropio(normalizarReto(JSON.parse($("rf-json").value))); }
+      catch (e) { $("rf-json-msg").textContent = `No es un JSON válido: ${e.message}`; }
+    }
+  });
+  $("v-reto").addEventListener("change", (ev) => {
+    // «Vaciar» no lleva cantidad.
+    if (ev.target.dataset.k === "tipo") { const n = ev.target.closest("[data-meta]").querySelector('[data-k="n"]'); n.disabled = ev.target.value === "vaciar"; }
+  });
 
   // ---------- Arranque ----------
   window.__banco = { get mundo() { return mundo; }, get programa() { return programa; }, generar, parsear, RETOS }; // para depurar desde la consola

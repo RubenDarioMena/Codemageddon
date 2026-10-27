@@ -1,0 +1,251 @@
+[
+ {
+  "reto": 1,
+  "nombre": "sin bucle (partida)",
+  "semillas": [
+   1
+  ],
+  "programas": {
+   "LAU-01": "const pos = autoTarget(\"crawler\", \"visual\");\nregularShoot(pos);\n"
+  }
+ },
+ {
+  "reto": 1,
+  "nombre": "bucle",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 2,
+  "nombre": "orugas primero",
+  "semillas": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"crawler\", \"visual\") ?? autoTarget(\"drone\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 2,
+  "nombre": "drones primero",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 3,
+  "nombre": "cámara (partida)",
+  "semillas": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 3,
+  "nombre": "cámara+térmico sin VIB",
+  "semillas": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"thermal\") ?? autoTarget(\"crawler\", \"thermal\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 3,
+  "nombre": "cámara+térmico+VIB",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"thermal\") ?? autoTarget(\"crawler\", \"thermal\") ?? VIB_01.detect(\"crawler\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 4,
+  "nombre": "regular",
+  "semillas": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 4,
+  "nombre": "ráfaga siempre",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  burstFire(pos);\n  await esperar(0.4);\n}\n"
+  }
+ },
+ {
+  "reto": 4,
+  "nombre": "partida (para a 0,35)",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  if (failureRate >= 0.25) {\n    console.warn(failureRate);\n  }\n  if (failureRate >= 0.35) {\n    stopFire();\n  } else {\n    burstFire(pos);\n  }\n  await esperar(0.4);\n}\n"
+  }
+ },
+ {
+  "reto": 4,
+  "nombre": "umbral 0,1 → regular",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  if (failureRate >= 0.1) regularShoot(pos);\n  else burstFire(pos);\n  await esperar(0.4);\n}\n"
+  }
+ },
+ {
+  "reto": 4,
+  "nombre": "histéresis 0,1 / 0,04",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "let enfriando = false;\nwhile (true) {\n  const pos = autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  if (failureRate >= 0.1) enfriando = true;\n  if (failureRate <= 0.04) enfriando = false;\n  if (enfriando) regularShoot(pos);\n  else burstFire(pos);\n  await esperar(0.4);\n}\n"
+  }
+ },
+ {
+  "reto": 5,
+  "nombre": "regular ×2",
+  "semillas": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n",
+   "LAU-02": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  regularShoot(pos);\n  await esperar(0.5);\n}\n"
+  }
+ },
+ {
+  "reto": 5,
+  "nombre": "ráfaga siempre ×2",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  burstFire(pos);\n  await esperar(0.4);\n}\n",
+   "LAU-02": "while (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  burstFire(pos);\n  await esperar(0.4);\n}\n"
+  }
+ },
+ {
+  "reto": 5,
+  "nombre": "histéresis ×2",
+  "semillas": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "programas": {
+   "LAU-01": "let enfriando = false;\nwhile (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  if (failureRate >= 0.1) enfriando = true;\n  if (failureRate <= 0.04) enfriando = false;\n  if (enfriando) regularShoot(pos);\n  else burstFire(pos);\n  await esperar(0.4);\n}\n",
+   "LAU-02": "let enfriando = false;\nwhile (true) {\n  const pos = autoTarget(\"stealth\", \"visual\") ?? autoTarget(\"drone\", \"visual\") ?? autoTarget(\"crawler\", \"visual\");\n  if (failureRate >= 0.1) enfriando = true;\n  if (failureRate <= 0.04) enfriando = false;\n  if (enfriando) regularShoot(pos);\n  else burstFire(pos);\n  await esperar(0.4);\n}\n"
+  }
+ }
+]

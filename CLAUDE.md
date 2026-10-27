@@ -13,6 +13,14 @@ Codemageddon: juego de automatización industrial que enseña JavaScript y SQL. 
 - **Revisas todo el código de Codex** antes de fusionarlo.
 - Estilo visual: *lo vivo se dibuja, lo fabricado se modela, y el robot está entre ambos* (ver «Estilo visual» del README de Concepto2).
 
+## Mecánicas y bancos HTML
+
+Cada ronda de feedback sobre mecánicas (`prototipos/mecanicas/`) actualiza **dos** documentos:
+- [docs/mecanicas/DIARIO.md](docs/mecanicas/DIARIO.md): se **añade** una entrada fechada con el feedback, lo hecho, las decisiones (incluidos los desvíos y su motivo), los datos, lo abierto y lo que queda para el juego final. Las entradas viejas no se reescriben.
+- [docs/mecanicas/VISION.md](docs/mecanicas/VISION.md): se **reescribe** para que siempre sea la especificación completa y al día.
+
+Lo que depende de sistemas que un HTML no tiene (economía, ciudad, modo historia) va a «Para el juego final» del diario y a «Fuera de los HTML» de la visión.
+
 ## Delegar a Codex (`codex exec`)
 
 Codex se usa sin interfaz desde la shell, con `codex exec`. Ya no existe servidor MCP: `codex mcp-server` se eliminó en Codex 0.154. El binario está en `~/.local/bin/codex`, un enlace al CLI que trae ChatGPT.app.

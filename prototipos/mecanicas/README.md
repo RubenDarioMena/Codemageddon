@@ -2,17 +2,23 @@
 
 Sandboxes HTML de un solo archivo que prueban **una** pregunta de diseño de la mecánica de código. No dependen de Godot. Cada uno se diseña antes con la skill `deep-game-systems` y se publica como Artifact para abrirlo en el móvil.
 
+Cada iteración deja rastro en dos documentos: el [diario](../../docs/mecanicas/DIARIO.md) (cronológico: feedback, decisiones y datos) y la [visión](../../docs/mecanicas/VISION.md) (la especificación completa y al día).
+
 Convenciones:
 
 - Simulación determinista por pasos fijos, separada del dibujo (Canvas 2D).
 - El código del jugador corre en un Web Worker con la misma forma de API que Concepto2 (`await yo.verbo(...)` devuelve un texto).
 - El reloj de juego se congela mientras el código del jugador piensa entre órdenes, así el mismo programa siempre da el mismo resultado.
 - Cada ejecución reinicia el mundo y guarda un intento en la telemetría local (botón «Copiar telemetría» en la pestaña Registro).
+- El código de partida llega comentado en JavaScript; `Ctrl+/` comenta y descomenta.
+- Al tocar una máquina, el inspector muestra en dos columnas lo que se usa en el código y sus datos, con las métricas aparte. Doble clic inserta.
+- Cada banco tiene un reto propio editable (enunciado, metas, mapa u oleadas) que se exporta como JSON.
 
 | # | Archivo | Pregunta | Artifact |
 | --- | --- | --- | --- |
 | 01 | [01_recoger_entregar.html](01_recoger_entregar.html) | ¿El segundo argumento de `recoger` crea decisiones con sentido? | https://claude.ai/artifact/9eVKwT2yiN7Cxy2EQs2bcB |
 | 02 | [02_tres_vistas.html](02_tres_vistas.html) | ¿El mismo programa se entiende en bloques, pseudocódigo y JS? ¿Un sensor vuelve necesarios `while` e `if`? | https://claude.ai/artifact/5VzufuABWh9zeWfE4fTqhG |
+| 03 | [03_lanzamisiles.html](03_lanzamisiles.html) | ¿Leer propiedades de una máquina (`failureRate`) y elegir sensor crea decisiones con `if`, `??` y estado? ¿Basta el inspector para escribir sin la ayuda? ¿Aporta el 3D? | https://claude.ai/artifact/72Kh7ckUMggmdfc2WiKYcn |
 
 ## 01 · Recoger y entregar
 
@@ -77,7 +83,56 @@ Convenciones:
 
 **Telemetría:** la misma que en 01, más el modo (bloques, pseudo o JS), el idioma, el número de bloques, los viajes vacíos y el contenido oculto de ese intento.
 
+**Ronda del 27-oct (ver el [diario](../../docs/mecanicas/DIARIO.md)):**
+- Inspector en dos columnas para bodegas, máquinas y R1, con métricas aparte y **ficha de producto** (viaje de R1 → espera → proceso = total). La fundidora hace 2 placas por cobre.
+- Doble clic: en JavaScript inserta (las funciones llegan con huecos `/* material */` seleccionados); en bloques rellena el valor abierto o añade el bloque que corresponde.
+- Arrastrar y soltar en bloques y pseudocódigo; soltar sobre la paleta borra.
+- Programa de partida comentado en JavaScript; volver a bloques sin tocarlo conserva los bloques.
+- `console.log/info/warn/error` con globo sobre R1.
+- Récord de tiempo por reto como número a optimizar.
+- Pestaña **Reto**: «Tu reto» con enunciado, metas, límites, mapa y bloques, exportable como JSON.
+
 **Pendiente:**
 - Variables y `log` en bloques. Necesitan un ladrillo de valor, por ejemplo «resultado de la última orden».
 - `&&` y `||` en condiciones.
 - Sangría francesa en las líneas largas del editor de texto.
+
+## 03 · Lanzamisiles
+
+**Átomo:** `regularShoot(lugar)` / `burstFire(lugar)` / `stopFire()` cambian el modo de disparo al instante y devuelven `"ok"`, `"sin_objetivo"`, `"sin_misiles"` o `"atascado"`. El lugar lo da `autoTarget(tipo, sensor)`, que predice, o `VIB_01.detect(tipo)`, que no predice. `failureRate` sube en ráfaga; un fallo atasca el lanzador y la reparación tarda 1,5 s + 12 s × failureRate.
+
+**Conexiones:**
+- Sensores → el segundo argumento de `autoTarget` elige qué se ve (niebla, drones fríos).
+- Red de sensores → la vibración oye lejos, pero da posiciones viejas.
+- Suministro y reparadores → la ráfaga solo compensa con flujo de misiles y robots que reparen.
+- Altura → un misil apuntado al suelo no alcanza a un dron.
+
+**Cadena:** enjambre → hace falta ráfaga → sube `failureRate` → atasco largo → brechas → hay que leer `failureRate` y alternar modos.
+
+**Emergente observado:** el umbral simple (`if (failureRate >= 0.1) regularShoot(...) else burstFire(...)`) sale peor que la ráfaga sin control, porque se queda rondando 0,1. La histéresis con `let enfriando` aparece como la solución.
+
+**Retos (calibrados con 10 semillas, ver [pruebas/](pruebas/)):**
+
+| Reto | Concepto | Mala | Buena |
+| --- | --- | --- | --- |
+| 1 · Primer blanco | bucle con espera | sin bucle: 0/1 | `while` + `esperar`: 10/10 |
+| 2 · Prioridades | `??` o `if/else` | orugas primero: 0/4 | drones primero: 10/10 |
+| 3 · Niebla | sensor por enemigo, red | sin VIB: 0/4 | con `VIB_01.detect`: 10/10 |
+| 4 · Enjambre (≤ 1 brecha) | leer `failureRate` | ráfaga siempre: 5/10 | histéresis: 8/10 |
+| 5 · Dos lanzadores (≤ 1 brecha) | un programa por máquina | ráfaga siempre ×2: 2/10 | histéresis ×2: 7/10 |
+
+**Interfaz:** campo de 32 × 18 en 3D (Three.js r128) o en plano; inspector de dos columnas; editor con colores por tipo; consola configurable por tipo (globo, pantalla con enlace a la máquina o solo consola); pestaña **Escenario** con enunciado, metas, defensa y oleadas propias.
+
+**Número a optimizar:** ₵ por derribo (₵ 10 por misil y ₵ 40 por reparación), con récord.
+
+**Telemetría:** la común, más la vista (3D o plano), la semilla, los atascos con su `failureRate` y su reparación, los usos de cada función, las consolas y las inserciones por doble clic, arrastre o atajo.
+
+## Pruebas sin ventana
+
+[pruebas/calibrar03.js](pruebas/calibrar03.js) juega cada estrategia de [calibracion03.json](pruebas/calibracion03.json) con varias semillas en Chromium sin ventana (Playwright) y resume victorias, brechas y atascos. Los bancos exponen `window.__banco` con `turbo(n)`, `fijarSemilla(n)` y `usarEscenario(def)` para estas pruebas.
+
+```bash
+cd prototipos/mecanicas/pruebas
+node calibrar03.js calibracion03.json            # con internet
+LIBS=/ruta/libs node calibrar03.js calibracion03.json   # sin internet: three.min.js y acorn.js locales
+```
