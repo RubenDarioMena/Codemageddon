@@ -1,0 +1,1931 @@
+<title>Recoger en tres vistas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.js"></script>
+<style>
+/* Plano de planta arriba; abajo, el mismo programa visto como bloques, pseudocódigo o JavaScript. En escritorio, dos columnas. */
+:root {
+  --bg: #E9ECE6;
+  --surface: #F6F7F3;
+  --code-bg: #FBFCF9;
+  --ink: #1C2630;
+  --muted: #5A6770;
+  --line: #CDD3CB;
+  --grid: #DDE2DA;
+  --building: #DCE1D9;
+  --building-top: #F3F5F0;
+  --edge: #8F9A93;
+  --accent: #2450B3;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(36, 80, 179, .12);
+  --cobre: #C05F27;
+  --silicio: #6A5AC4;
+  --ok: #2A7748;
+  --warn: #9A6A0C;
+  --bad: #B4302A;
+  --bad-soft: rgba(180, 48, 42, .14);
+  /* Ladrillos */
+  --b-accion: #2F5FC9;
+  --b-control: #2B8452;
+  --b-espera: #75685A;
+  --b-texto: #FFFFFF;
+  --chip-bg: #FFFFFF;
+  --chip-ink: #1C2630;
+  /* Pseudocódigo */
+  --p-accion: #2F5FC9;
+  --p-control: #1F8A4C;
+  --p-cond-bg: rgba(31, 138, 76, .1);
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161B; --surface: #182027; --code-bg: #141B21; --ink: #E2E7E2; --muted: #95A2A9;
+    --line: #2B3741; --grid: #202A33; --building: #26313A; --building-top: #33404A; --edge: #5C6B75;
+    --accent: #7FA3FF; --accent-ink: #0E1520; --accent-soft: rgba(127, 163, 255, .16);
+    --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
+    --b-accion: #3A68D0; --b-control: #2E8655; --b-espera: #6E6355; --b-texto: #FFFFFF; --chip-bg: #EEF1F4; --chip-ink: #1C2630;
+    --p-accion: #86A8FF; --p-control: #63CF8E; --p-cond-bg: rgba(99, 207, 142, .12);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161B; --surface: #182027; --code-bg: #141B21; --ink: #E2E7E2; --muted: #95A2A9;
+  --line: #2B3741; --grid: #202A33; --building: #26313A; --building-top: #33404A; --edge: #5C6B75;
+  --accent: #7FA3FF; --accent-ink: #0E1520; --accent-soft: rgba(127, 163, 255, .16);
+  --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
+  --b-accion: #3A68D0; --b-control: #2E8655; --b-espera: #6E6355; --b-texto: #FFFFFF; --chip-bg: #EEF1F4; --chip-ink: #1C2630;
+  --p-accion: #86A8FF; --p-control: #63CF8E; --p-cond-bg: rgba(99, 207, 142, .12);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 28px;
+  display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr);
+  --code-size: 14px;
+}
+.col { display: grid; gap: 12px; min-width: 0; align-content: start; }
+@media (min-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 22px; padding-block: 22px 32px; }
+}
+
+/* Cabecera */
+.eyebrow { font-family: var(--f-display); font-stretch: 112%; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+h1 { margin: 2px 0 0; font-family: var(--f-display); font-stretch: 118%; font-weight: 780; font-size: clamp(22px, 5.6vw, 30px); line-height: 1.08; text-wrap: balance; }
+.retos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.retos::-webkit-scrollbar { display: none; }
+.reto-btn {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px 6px 6px; cursor: pointer; font-size: 13px; font-weight: 560;
+}
+.reto-btn .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-family: var(--f-code); font-size: 12px; }
+.reto-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.reto-btn[aria-pressed="true"] .n { background: var(--accent); color: var(--accent-ink); }
+.reto-btn.hecho .n { background: var(--ok); color: var(--surface); }
+.reto-btn .nuevo { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+
+.objetivo { display: grid; gap: 8px; }
+.objetivo p { margin: 0; max-width: 62ch; }
+.leccion { font-size: 12.5px; color: var(--muted); }
+.metas { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.meta .pt { width: 9px; height: 9px; border-radius: 50%; }
+.meta.cumplida { border-color: var(--ok); color: var(--ok); }
+.meta.rota { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+
+/* Mapa */
+.lienzo-wrap { position: relative; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointer; }
+.reloj {
+  position: absolute; top: 8px; right: 8px; font-family: var(--f-code); font-size: 12px; font-variant-numeric: tabular-nums;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px;
+}
+.reloj.tarde { color: var(--bad); border-color: var(--bad); }
+.banner {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 12px 14px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  display: grid; gap: 6px; max-height: calc(100% - 16px); overflow: auto;
+}
+.banner.victoria { border-color: var(--ok); }
+.banner.fallo { border-color: var(--bad); }
+.banner h2 { margin: 0; font-family: var(--f-display); font-stretch: 115%; font-size: 17px; font-weight: 760; }
+.banner.victoria h2 { color: var(--ok); }
+.banner.fallo h2 { color: var(--bad); }
+.banner p { margin: 0; font-size: 13.5px; }
+.banner .stats { font-family: var(--f-code); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.banner .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+
+.info {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap;
+  min-height: 40px; padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px dashed var(--line);
+  font-size: 13px; color: var(--muted);
+}
+.info b { color: var(--ink); font-family: var(--f-code); font-weight: 600; }
+
+.controles { display: grid; grid-template-columns: 1.6fr 1fr .8fr 1fr; gap: 8px; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 12px; min-height: 44px;
+  cursor: pointer; font-weight: 620; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn:hover { border-color: var(--edge); }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.peligro { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.btn.chico { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.leyenda i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+/* Panel */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.tab {
+  border: 0; background: none; padding: 9px 12px; cursor: pointer; font-weight: 620; font-size: 14px; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.vista { display: grid; gap: 10px; min-width: 0; padding-top: 10px; grid-template-columns: minmax(0, 1fr); }
+.vista > *, .col > * { min-width: 0; }
+
+.modos { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 9px; padding: 3px; background: var(--surface); gap: 3px; }
+.modo { border: 0; background: none; border-radius: 6px; padding: 8px 4px; font-weight: 640; font-size: 13.5px; cursor: pointer; color: var(--muted); min-height: 38px; }
+.modo[aria-checked="true"] { background: var(--ink); color: var(--surface); }
+.herramientas { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.grupo { display: inline-flex; align-items: center; gap: 4px; }
+.mini { border: 1px solid var(--line); background: var(--surface); border-radius: 6px; padding: 3px 9px; min-height: 30px; cursor: pointer; font-size: 12.5px; font-weight: 620; }
+.mini[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+
+.paleta { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.ladrillo {
+  flex: 0 0 auto; border: 0; border-radius: 7px; padding: 7px 11px; font-weight: 680; font-size: 13px; cursor: pointer; min-height: 36px;
+  color: var(--b-texto); background: var(--b-accion);
+}
+.ladrillo.control { background: var(--b-control); }
+.ladrillo.espera { background: var(--b-espera); }
+.ladrillo::before { content: "+ "; opacity: .75; }
+.v-pseudo-paleta .ladrillo { background: var(--surface); color: var(--p-accion); border: 1px solid var(--line); font-family: var(--f-code); font-weight: 600; }
+.v-pseudo-paleta .ladrillo.control { color: var(--p-control); }
+.v-pseudo-paleta .ladrillo.espera { color: var(--muted); }
+.atajo {
+  flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
+  padding: 6px 9px; font-family: var(--f-code); font-size: 12.5px; cursor: pointer; min-height: 34px;
+}
+.atajo.mat { padding-left: 7px; display: inline-flex; align-items: center; gap: 5px; }
+.atajo.mat i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.seleccion { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); min-height: 34px; }
+.seleccion .mini { min-width: 38px; }
+.aviso { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--warn); color: var(--ink); background: var(--surface); font-size: 13px; display: grid; gap: 6px; }
+
+/* Programa en bloques / pseudocódigo */
+.prog {
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--code-bg); padding: 10px;
+  min-height: 15rem; max-height: 62vh; overflow: auto; font-size: var(--code-size);
+}
+.lista { display: flex; flex-direction: column; gap: 4px; }
+.fila { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 6px; border-radius: 8px; cursor: pointer; line-height: 1.3; }
+.slot {
+  border: 0; border-radius: 999px; padding: 3px 9px; font-size: .95em; font-weight: 650; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--f-code);
+}
+.slot i { width: .62em; height: .62em; border-radius: 50%; display: inline-block; }
+.slot.abierto { outline: 2px solid var(--accent); outline-offset: 1px; }
+.inicio { font-size: .9em; }
+.vacio { font-size: .85em; padding: 6px 10px; border: 1.5px dashed var(--line); border-radius: 7px; color: var(--muted); cursor: pointer; }
+.cursor { height: 0; border-top: 2.5px solid var(--accent); position: relative; margin: 2px 0; }
+.cursor span { position: absolute; right: 0; top: -.85em; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: var(--accent); background: var(--code-bg); padding: 0 4px; text-transform: uppercase; }
+.nodo.sel > .fila.cabeza, .fila.simple.sel { outline: 2.5px solid var(--accent); outline-offset: 1px; }
+.fila.corre { box-shadow: 0 0 0 3px var(--accent), 0 0 14px var(--accent-soft); }
+.fila.err { box-shadow: 0 0 0 3px var(--bad); }
+
+/* Piel de bloques */
+.v-bloques .fila { padding: 7px 10px; min-height: 42px; color: var(--b-texto); background: var(--b-accion); font-weight: 680; }
+.v-bloques .fila.control { background: var(--b-control); }
+.v-bloques .fila.espera { background: var(--b-espera); }
+.v-bloques .slot { background: var(--chip-bg); color: var(--chip-ink); }
+.v-bloques .inicio { background: var(--ink); color: var(--surface); border-radius: 14px 14px 6px 6px; padding: 7px 12px; font-weight: 700; display: inline-block; cursor: pointer; }
+.v-bloques .contenedor > .cuerpo { border-left: 14px solid var(--b-control); padding: 4px 0 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+.v-bloques .contenedor > .fila.cabeza { border-bottom-left-radius: 0; }
+.v-bloques .contenedor > .fila.sino { border-radius: 0 8px 8px 0; min-height: 30px; }
+.v-bloques .contenedor > .fila.pie { min-height: 14px; padding: 0; border-top-left-radius: 0; width: 46%; }
+.v-bloques .cond { display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; background: rgba(0,0,0,.16); border-radius: 999px; padding: 3px 6px 3px 4px; }
+.v-bloques .tx { opacity: .92; font-weight: 600; }
+
+/* Piel de pseudocódigo */
+.v-pseudo { font-family: var(--f-body); }
+.v-pseudo .lista { gap: 2px; }
+.v-pseudo .fila { padding: 5px 6px; min-height: 36px; font-size: 1.08em; }
+.v-pseudo .kw { color: var(--p-accion); font-weight: 760; }
+.v-pseudo .kc { color: var(--p-control); font-weight: 760; }
+.v-pseudo .slot { background: transparent; color: var(--ink); padding: 2px 6px; border: 1px solid var(--line); font-family: var(--f-body); font-weight: 560; }
+.v-pseudo .cond { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; background: var(--p-cond-bg); border-radius: 6px; padding: 2px 5px; color: var(--p-control); }
+.v-pseudo .cond .slot { color: var(--p-control); border-color: transparent; background: transparent; }
+.v-pseudo .contenedor > .cuerpo { margin-left: 12px; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.v-pseudo .fila.pie, .v-pseudo .fila.sino { color: var(--muted); }
+.v-pseudo .fila.pie { min-height: 26px; font-size: .9em; }
+.v-pseudo .inicio { color: var(--muted); font-size: .85em; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; padding: 2px 6px; display: inline-block; }
+
+.vista-js { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.vista-js summary { padding: 8px 10px; cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
+.vista-js pre { margin: 0; padding: 4px 0 10px; overflow-x: auto; font-family: var(--f-code); font-size: 12.5px; line-height: 1.6; }
+.vista-js pre div { padding: 0 10px; white-space: pre; }
+.vista-js pre div.corre { background: var(--accent-soft); }
+.vista-js pre div.err { background: var(--bad-soft); }
+.vista-js .ln { display: inline-block; width: 2em; color: var(--muted); user-select: none; }
+
+/* Editor de texto con ajuste de línea */
+.editor {
+  --lh: calc(var(--code-size) * 1.6); --pad: 10px;
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--code-bg); overflow: hidden;
+  height: clamp(15rem, 46vh, 32rem);
+  font-family: var(--f-code); font-size: var(--code-size);
+}
+.gutter { overflow: hidden; border-right: 1px solid var(--line); color: var(--muted); user-select: none; min-width: 2.4em; }
+.gutter-in { padding: var(--pad) 7px var(--pad) 8px; text-align: right; font-variant-numeric: tabular-nums; }
+.gutter-in div { line-height: var(--lh); font-size: .82em; }
+.gutter-in div.corre { color: var(--accent); font-weight: 600; }
+.gutter-in div.err { color: var(--bad); font-weight: 600; }
+.area { position: relative; min-width: 0; }
+.banda { position: absolute; left: 0; right: 0; pointer-events: none; display: none; }
+.banda.corre { display: block; background: var(--accent-soft); }
+.banda.err { display: block; background: var(--bad-soft); }
+textarea#codigo, .espejo {
+  font: inherit; line-height: var(--lh); padding: var(--pad); tab-size: 2;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+textarea#codigo {
+  position: relative; z-index: 1; display: block; width: 100%; height: 100%; margin: 0; border: 0; outline: none; resize: none;
+  background: transparent; color: var(--ink); overflow: auto; caret-color: var(--accent);
+}
+.espejo { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; }
+.espejo div { min-height: var(--lh); }
+
+.consola {
+  font-family: var(--f-code); font-size: 12.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  max-height: 9.5rem; min-height: 4.5rem; overflow: auto; padding: 6px 8px; display: grid; align-content: start; gap: 2px;
+}
+.consola .c { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); gap: 6px; overflow-wrap: anywhere; }
+.consola .c .l { color: var(--muted); font-variant-numeric: tabular-nums; }
+.consola .c.ok b { color: var(--ok); }
+.consola .c.warn b { color: var(--warn); }
+.consola .c.sensor { color: var(--muted); }
+.consola .c.sensor b { color: var(--ink); }
+.consola .c.bad, .consola .c.bad b { color: var(--bad); }
+.consola .c.log { color: var(--muted); }
+.consola .vacia { color: var(--muted); }
+.fila-bajo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.link { border: 0; background: none; padding: 4px 0; color: var(--accent); cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Selector de valores */
+.hoja {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(14px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -8px 30px rgba(0,0,0,.18);
+  display: grid; gap: 10px;
+}
+.hoja-in { max-width: 560px; width: 100%; margin: 0 auto; display: grid; gap: 10px; }
+.hoja-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.hoja h3 { margin: 0; font-size: 14px; font-weight: 700; }
+.hoja .pista { font-size: 12px; color: var(--muted); }
+.opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.4rem, 1fr)); gap: 6px; }
+.opcion { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; min-height: 44px; font-family: var(--f-code); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 8px; }
+.opcion[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.opcion i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+.tabla-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-height: 22rem; }
+table { border-collapse: collapse; width: 100%; font-family: var(--f-code); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface); font-family: var(--f-body); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.ok { color: var(--ok); } td.warn { color: var(--warn); } td.bad { color: var(--bad); } td.sensor { color: var(--muted); }
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 8px; }
+.dato { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--surface); }
+.dato span { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dato b { font-family: var(--f-code); font-size: 18px; font-variant-numeric: tabular-nums; }
+details.json summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-size: 11.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--code-bg); color: var(--ink); padding: 8px; margin-top: 6px; }
+
+.ayuda { display: grid; gap: 12px; max-width: 65ch; }
+.ayuda h3 { margin: 6px 0 0; font-family: var(--f-display); font-stretch: 112%; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.firma { display: grid; gap: 3px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
+.firma.sensor { border-left-color: var(--ok); }
+.firma code { font-family: var(--f-code); font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.firma p { margin: 0; font-size: 13.5px; }
+.ayuda ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: 13.5px; }
+.ayuda pre { margin: 0; overflow-x: auto; font-family: var(--f-code); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.r { font-family: var(--f-code); font-size: .92em; padding: 0 3px; border-radius: 3px; background: var(--bg); }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <div class="col">
+    <header class="col" style="gap:8px">
+      <div class="eyebrow">Codemageddon · banco de mecánicas 02</div>
+      <h1 id="titulo">Primer viaje</h1>
+      <nav class="retos" id="retos" aria-label="Retos"></nav>
+    </header>
+
+    <section class="objetivo" aria-label="Objetivo">
+      <p id="objetivo-txt"></p>
+      <div class="leccion" id="leccion"></div>
+      <div class="metas" id="metas"></div>
+    </section>
+
+    <div class="lienzo-wrap">
+      <canvas id="lienzo" aria-label="Mapa de la planta"></canvas>
+      <div class="reloj" id="reloj">t 0.0 s</div>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+
+    <div class="info" id="info"><span>Toca un edificio para ver qué guarda.</span></div>
+
+    <div class="controles">
+      <button class="btn primario" id="b-ejecutar" type="button">▶ Ejecutar</button>
+      <button class="btn" id="b-pausa" type="button" disabled>Pausa</button>
+      <button class="btn" id="b-vel" type="button" aria-label="Velocidad">1×</button>
+      <button class="btn" id="b-reiniciar" type="button">Reiniciar</button>
+    </div>
+    <div class="leyenda">
+      <span><i style="background:var(--cobre)"></i>cobre</span>
+      <span><i style="background:var(--silicio)"></i>silicio</span>
+      <span><i style="background:var(--ink)"></i>robot R1 (lleva 1 unidad)</span>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-programa" aria-selected="true" aria-controls="v-programa" type="button">Programa</button>
+      <button class="tab" role="tab" id="t-registro" aria-selected="false" aria-controls="v-registro" type="button">Registro</button>
+      <button class="tab" role="tab" id="t-ayuda" aria-selected="false" aria-controls="v-ayuda" type="button">Órdenes</button>
+    </div>
+
+    <section class="vista" id="v-programa" role="tabpanel" aria-labelledby="t-programa">
+      <div class="modos" role="radiogroup" aria-label="Vista del programa" id="modos">
+        <button class="modo" type="button" role="radio" data-modo="bloques" aria-checked="true">Bloques</button>
+        <button class="modo" type="button" role="radio" data-modo="pseudo" aria-checked="false">Pseudocódigo</button>
+        <button class="modo" type="button" role="radio" data-modo="js" aria-checked="false">JavaScript</button>
+      </div>
+      <div class="herramientas">
+        <span class="grupo" id="g-idioma"><span>Idioma</span>
+          <button class="mini" type="button" data-idioma="en" aria-pressed="true">EN</button>
+          <button class="mini" type="button" data-idioma="es" aria-pressed="false">ES</button>
+        </span>
+        <span class="grupo"><span>Letra</span>
+          <button class="mini" type="button" id="b-menos" aria-label="Letra más pequeña">A−</button>
+          <button class="mini" type="button" id="b-mas" aria-label="Letra más grande">A+</button>
+        </span>
+      </div>
+
+      <div class="aviso" id="aviso" hidden></div>
+      <div class="paleta" id="paleta" aria-label="Ladrillos"></div>
+      <div class="seleccion" id="seleccion" hidden></div>
+
+      <div class="prog" id="prog" hidden></div>
+      <div class="editor" id="editor" hidden>
+        <div class="gutter"><div class="gutter-in" id="gutter"></div></div>
+        <div class="area">
+          <div class="espejo" id="espejo" aria-hidden="true"></div>
+          <div class="banda" id="banda"></div>
+          <textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Programa del robot R1 en JavaScript"></textarea>
+        </div>
+      </div>
+      <details class="vista-js" id="vista-js" open>
+        <summary>Así se ve en JavaScript</summary>
+        <pre id="js-pre"></pre>
+      </details>
+
+      <div class="consola" id="consola" aria-live="polite"><div class="vacia">Aquí verás cada orden y lo que devuelve.</div></div>
+      <div class="fila-bajo">
+        <span id="intento-txt">Intento 1</span>
+        <button class="link" id="b-restaurar" type="button">Restaurar programa inicial</button>
+      </div>
+    </section>
+
+    <section class="vista" id="v-registro" role="tabpanel" aria-labelledby="t-registro" hidden>
+      <div class="resumen" id="resumen"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>t (s)</th><th>Línea</th><th>Orden</th><th>Resultado</th></tr></thead>
+          <tbody id="eventos"></tbody>
+        </table>
+      </div>
+      <div class="fila-bajo">
+        <span>Registro del último intento, como la tabla <span class="r">eventos</span> del juego. Los sensores aparecen en gris.</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <button class="btn chico" id="b-copiar" type="button">Copiar telemetría (JSON)</button>
+        <button class="btn chico" id="b-borrar" type="button">Borrar telemetría</button>
+        <span id="copiado" class="fila-bajo" hidden>Copiada.</span>
+      </div>
+      <details class="json">
+        <summary>Ver JSON</summary>
+        <textarea id="json" readonly></textarea>
+      </details>
+    </section>
+
+    <section class="vista ayuda" id="v-ayuda" role="tabpanel" aria-labelledby="t-ayuda" hidden>
+      <h3>Tres vistas, un solo programa</h3>
+      <ul>
+        <li><b>Bloques:</b> toca un ladrillo de arriba y se coloca donde está la línea azul. Toca un bloque para moverlo, duplicarlo o borrarlo. Toca un valor para cambiarlo, o toca un edificio del mapa mientras eliges un lugar.</li>
+        <li><b>Pseudocódigo:</b> el mismo programa escrito como frases. Se edita igual que los bloques.</li>
+        <li><b>JavaScript:</b> texto libre. Al volver a bloques, el texto se traduce si solo usa lo que los bloques conocen.</li>
+      </ul>
+      <h3>Órdenes</h3>
+      <div class="firma">
+        <code>await yo.recoger(origen, material)</code>
+        <p>R1 camina hasta la bodega y toma 1 unidad. Devuelve <span class="r">"ok"</span>, <span class="r">"viaje_vacio"</span> o <span class="r">"manos_llenas"</span>.</p>
+      </div>
+      <div class="firma">
+        <code>await yo.entregar(destino)</code>
+        <p>R1 deja lo que lleva. Devuelve <span class="r">"ok"</span>, <span class="r">"rechazado"</span> (la máquina no acepta ese material), <span class="r">"derrame"</span> (entrada llena: el material cae al suelo) o <span class="r">"manos_vacias"</span>.</p>
+      </div>
+      <div class="firma">
+        <code>await yo.esperar(segundos)</code>
+        <p>R1 se queda quieto ese tiempo de juego.</p>
+      </div>
+      <div class="firma sensor">
+        <code>await yo.cuantos(lugar, material)</code>
+        <p>Sensor nuevo. No gasta tiempo ni mueve a R1. En una bodega devuelve cuántas unidades de ese material quedan; en una máquina, cuántas esperan en su entrada.</p>
+      </div>
+      <h3>Reglas del mundo</h3>
+      <ul>
+        <li>R1 camina 4 casillas por segundo, en L. Recoger o entregar tarda 0,5 s.</li>
+        <li>Cada máquina procesa una pieza a la vez; las demás esperan en una entrada con huecos limitados.</li>
+        <li>El reloj solo avanza con las órdenes: pensar no gasta tiempo de juego.</li>
+        <li>Cada ejecución empieza con el mundo recién puesto.</li>
+        <li>Un bucle que solo consulta sensores sin moverse se detiene solo.</li>
+      </ul>
+      <h3>Ejemplo en JavaScript</h3>
+<pre>while (await yo.cuantos("ENT-1", "cobre") > 0) {
+  await yo.recoger("ENT-1", "cobre");
+  await yo.entregar("FUN");
+}</pre>
+    </section>
+  </div>
+</div>
+
+<div class="hoja" id="hoja" hidden role="dialog" aria-label="Elegir valor">
+  <div class="hoja-in">
+    <div class="hoja-top"><h3 id="hoja-titulo">Elige</h3><button class="btn chico" id="hoja-cerrar" type="button">Listo</button></div>
+    <div class="opciones" id="hoja-opciones"></div>
+    <div class="pista" id="hoja-pista"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Constantes del mundo ----------
+  const COLS = 9, ROWS = 7;
+  const VEL = 4;          // casillas por segundo
+  const OP = 0.5;         // segundos por recoger/entregar
+  const DT = 0.05;        // paso fijo de simulación (tiempo de juego)
+  const VIGIA_MS = 2500;  // bucle sin await
+  const MAX_SENSORES = 500;  // consultas seguidas sin que R1 haga nada
+  const T_LIMITE = 300;   // tiempo de juego máximo de un intento
+  const MATERIALES = ["cobre", "silicio"];
+  const CLAVE = "cmg-banco02";
+
+  // ---------- Retos ----------
+  // `inicial` es el programa de partida como árbol; las tres vistas salen de él.
+  const R = (o, m) => ({ t: "recoger", origen: o, mat: m });
+  const E = (d) => ({ t: "entregar", destino: d });
+  const REP = (n, cuerpo) => ({ t: "repetir", n, cuerpo });
+  const MIENTRAS = (cond, cuerpo) => ({ t: "mientras", cond, cuerpo });
+  const BASICOS = ["recoger", "entregar", "repetir"];
+
+  const RETOS = [
+    {
+      titulo: "Primer viaje",
+      objetivo: "Lleva 3 de cobre de la bodega ENT-1 a la fundidora FUN.",
+      leccion: "Secuencia y bucle for.",
+      pista: "Cada par de bloques es un viaje. Repítelo o mételo en un «repeat».",
+      ladrillos: BASICOS,
+      robot: { x: 4, y: 5 },
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 3 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 3, puerta: { x: 6, y: 3 }, acepta: "cobre", cap: 3, tProceso: 3 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 3 }],
+      inicial: [R("ENT-1", "cobre"), E("FUN")],
+    },
+    {
+      titulo: "Dos materiales",
+      objetivo: "ENT-1 guarda cobre y silicio. FUN necesita 3 de cobre y la ensambladora ENS, 3 de silicio.",
+      leccion: "Argumentos: el segundo valor de recoger elige el material.",
+      pista: "ENS solo acepta silicio. Si entregas algo que no acepta, R1 se queda con la carga.",
+      ladrillos: BASICOS,
+      robot: { x: 4, y: 3 },
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 3, silicio: 3 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 1, puerta: { x: 6, y: 1 }, acepta: "cobre", cap: 3, tProceso: 3 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 7, y: 5, puerta: { x: 6, y: 5 }, acepta: "silicio", cap: 3, tProceso: 3 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 3 }, { id: "ENS", mat: "silicio", n: 3 }],
+      inicial: [REP(3, [R("ENT-1", "cobre"), E("FUN")])],
+    },
+    {
+      titulo: "Sin derrames",
+      objetivo: "Lleva 4 de cobre a FUN y 4 de silicio a ENS sin derramar nada. Cada máquina tarda 9 s por pieza y su entrada tiene un solo hueco.",
+      leccion: "Orden de las instrucciones.",
+      pista: "Mientras una máquina trabaja, R1 puede hacer otro viaje. También existe «wait».",
+      ladrillos: [...BASICOS, "esperar"],
+      robot: { x: 4, y: 3 },
+      maxDerrames: 0,
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 4, silicio: 4 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 1, puerta: { x: 6, y: 1 }, acepta: "cobre", cap: 1, tProceso: 9 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 7, y: 5, puerta: { x: 6, y: 5 }, acepta: "silicio", cap: 1, tProceso: 9 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 4 }, { id: "ENS", mat: "silicio", n: 4 }],
+      inicial: [REP(4, [R("ENT-1", "cobre"), E("FUN")]), REP(4, [R("ENT-1", "silicio"), E("ENS")])],
+    },
+    {
+      titulo: "Contra reloj",
+      objetivo: "Lleva 4 de cobre a FUN y 2 de silicio a ENS en 18 s de juego o menos. ENT-1 está cerca pero tiene poco cobre; ENT-2 está lejos y tiene mucho.",
+      leccion: "Planificar el recorrido.",
+      pista: "R1 sale desde donde terminó la orden anterior, así que el orden de los viajes importa.",
+      ladrillos: [...BASICOS, "esperar"],
+      robot: { x: 4, y: 4 },
+      tiempoMax: 18,
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 5, y: 1, puerta: { x: 5, y: 2 }, stock: { cobre: 2, silicio: 2 } },
+        { id: "ENT-2", tipo: "bodega", nombre: "Bodega", x: 1, y: 5, puerta: { x: 2, y: 5 }, stock: { cobre: 6 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 3, puerta: { x: 6, y: 3 }, acepta: "cobre", cap: 6, tProceso: 2 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 2, y: 1, puerta: { x: 2, y: 2 }, acepta: "silicio", cap: 4, tProceso: 2 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 4 }, { id: "ENS", mat: "silicio", n: 2 }],
+      inicial: [REP(4, [R("ENT-2", "cobre"), E("FUN")]), REP(2, [R("ENT-1", "silicio"), E("ENS")])],
+    },
+    {
+      titulo: "Hasta vaciar",
+      nuevo: true,
+      objetivo: "Llegó un camión con una cantidad de cobre que cambia en cada intento, y ENT-1 está tapada. Vacíala en FUN sin hacer ni un viaje vacío.",
+      leccion: "aprendejavascript.dev · Bucles con while + Operadores de comparación.",
+      pista: "Un «repeat» necesita saber cuántas veces. El sensor «cobre in ENT-1» lo mide antes de cada vuelta: prueba «while» con «> 0».",
+      ladrillos: [...BASICOS, "mientras"],
+      robot: { x: 4, y: 5 },
+      maxVacios: 0,
+      stockPorIntento: [7, 3, 6, 4, 5],
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 5 }, oculto: true },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 3, puerta: { x: 6, y: 3 }, acepta: "cobre", cap: 8, tProceso: 1 },
+      ],
+      metas: [{ tipo: "vaciar", id: "ENT-1", mat: "cobre" }],
+      inicial: [REP(5, [R("ENT-1", "cobre"), E("FUN")])],
+    },
+    {
+      titulo: "Plan B",
+      nuevo: true,
+      objetivo: "Vacía el MUELLE en 24 s sin derrames. FUN tarda 6 s por pieza y solo tiene un hueco; BOD es una bodega de respaldo que acepta todo. FUN debe recibir al menos 3.",
+      leccion: "aprendejavascript.dev · Condicional if/else + Operadores de comparación.",
+      pista: "Antes de entregar, mira cuánto cobre espera en la entrada de FUN: si es menos de 1, entrega en FUN; si no, en BOD.",
+      ladrillos: [...BASICOS, "esperar", "mientras", "si"],
+      robot: { x: 4, y: 3 },
+      maxDerrames: 0,
+      tiempoMax: 24,
+      entidades: [
+        { id: "MUELLE", tipo: "bodega", nombre: "Muelle", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 6 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 2, puerta: { x: 6, y: 2 }, acepta: "cobre", cap: 1, tProceso: 6 },
+        { id: "BOD", tipo: "bodega", nombre: "Respaldo", x: 7, y: 5, puerta: { x: 6, y: 5 }, stock: { cobre: 0 } },
+      ],
+      metas: [{ tipo: "vaciar", id: "MUELLE", mat: "cobre" }, { id: "FUN", mat: "cobre", n: 3 }],
+      inicial: [MIENTRAS({ lugar: "MUELLE", mat: "cobre", op: ">", n: 0 }, [R("MUELLE", "cobre"), E("FUN")])],
+    },
+  ];
+
+  // ---------- Textos de bloques y pseudocódigo ----------
+  // kw = acción, kc = control, tx = texto, slot = valor editable, cond = condición
+  const TXT = {
+    en: {
+      recoger: [["kw", "pick up"], ["slot", "mat"], ["tx", "from"], ["slot", "origen"]],
+      entregar: [["kw", "deliver to"], ["slot", "destino"]],
+      esperar: [["kw", "wait"], ["slot", "s"], ["tx", "s"]],
+      repetir: [["kc", "repeat"], ["slot", "n"], ["tx", "times"]],
+      mientras: [["kc", "while"], ["cond"]],
+      si: [["kc", "if"], ["cond"]],
+      cond: [["slot", "cond.mat"], ["tx", "in"], ["slot", "cond.lugar"], ["slot", "cond.op"], ["slot", "cond.n"]],
+      sino: "else",
+      fin: { repetir: "end repeat", mientras: "end while", si: "end if" },
+      inicio: "when ▶ Run is pressed", inicioPseudo: "program",
+      vacio: "empty · tap here, then a brick", cursor: "next brick",
+      paleta: { recoger: "pick up", entregar: "deliver", esperar: "wait", repetir: "repeat", mientras: "while", si: "if / else" },
+    },
+    es: {
+      recoger: [["kw", "recoge"], ["slot", "mat"], ["tx", "de"], ["slot", "origen"]],
+      entregar: [["kw", "entrega en"], ["slot", "destino"]],
+      esperar: [["kw", "espera"], ["slot", "s"], ["tx", "s"]],
+      repetir: [["kc", "repite"], ["slot", "n"], ["tx", "veces"]],
+      mientras: [["kc", "mientras"], ["cond"]],
+      si: [["kc", "si"], ["cond"]],
+      cond: [["slot", "cond.mat"], ["tx", "en"], ["slot", "cond.lugar"], ["slot", "cond.op"], ["slot", "cond.n"]],
+      sino: "si no",
+      fin: { repetir: "fin repite", mientras: "fin mientras", si: "fin si" },
+      inicio: "al pulsar ▶ Ejecutar", inicioPseudo: "programa",
+      vacio: "vacío · toca aquí y luego un ladrillo", cursor: "siguiente",
+      paleta: { recoger: "recoge", entregar: "entrega", esperar: "espera", repetir: "repite", mientras: "mientras", si: "si / si no" },
+    },
+  };
+  const OPS = [">", ">=", "<", "<=", "==", "!="];
+  const OP_JS = { ">": ">", ">=": ">=", "<": "<", "<=": "<=", "==": "===", "!=": "!==" };
+  const OP_VER = { ">": ">", ">=": "≥", "<": "<", "<=": "≤", "==": "=", "!=": "≠" };
+  const CATEGORIA = { recoger: "accion", entregar: "accion", esperar: "espera", repetir: "control", mientras: "control", si: "control" };
+
+  // ---------- Almacenamiento local (comodidad del jugador) ----------
+  const guardado = {
+    leer(k, def) { try { const v = localStorage.getItem(`${CLAVE}:${k}`); return v == null ? def : JSON.parse(v); } catch { return def; } },
+    escribir(k, v) { try { localStorage.setItem(`${CLAVE}:${k}`, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
+  };
+
+  // ---------- Runtime del jugador (Web Worker) ----------
+  const WORKER_SRC = `
+const AF = Object.getPrototypeOf(async function () {}).constructor;
+let seq = 0;
+const pend = new Map();
+let OFF = null;
+const VERBOS = ["recoger", "entregar", "esperar", "cuantos"];
+function lineaDe(e) {
+  const s = String((e && e.stack) || "");
+  const m = s.match(/<anonymous>:(\\d+):\\d+/) || s.match(/> Function:(\\d+):\\d+/) || s.match(/(?:eval code|anonymous)[^\\n]*?:(\\d+):\\d+/);
+  return m ? +m[1] : null;
+}
+function llamar(linea, verbo, args) {
+  const id = ++seq;
+  postMessage({ type: "call", id, linea, verbo, args });
+  return new Promise((resolve, reject) => pend.set(id, { resolve, reject, linea }));
+}
+function __yo(linea) {
+  return new Proxy({}, {
+    get(_, p) {
+      if (VERBOS.includes(p)) return (...a) => llamar(linea, p, a);
+      if (typeof p === "symbol" || p === "then") return undefined;
+      const e = new Error("yo." + String(p) + " no existe. Las órdenes son yo.recoger, yo.entregar, yo.esperar y yo.cuantos.");
+      e.__linea = linea;
+      throw e;
+    },
+  });
+}
+function fmt(v) { if (typeof v === "string") return v; try { return JSON.stringify(v); } catch (_) { return String(v); } }
+function __log(linea) { return (...a) => postMessage({ type: "log", linea, texto: a.map(fmt).join(" ") }); }
+onmessage = async (ev) => {
+  const m = ev.data;
+  if (m.type === "res") {
+    const p = pend.get(m.id);
+    if (!p) return;
+    pend.delete(m.id);
+    if (m.error) { const e = new Error(m.error); e.__linea = p.linea; p.reject(e); }
+    else p.resolve(m.valor);
+    return;
+  }
+  if (m.type !== "run") return;
+  if (OFF === null) {
+    try { await new AF("\\nthrow new Error('x')")(); } catch (e) { const n = lineaDe(e); OFF = n == null ? NaN : n - 2; }
+  }
+  let fn;
+  try { fn = new AF("__yo", "__log", m.codigo); }
+  catch (e) { postMessage({ type: "error", mensaje: "Error de sintaxis: " + e.message, linea: null }); return; }
+  try { await fn(__yo, __log); postMessage({ type: "done" }); }
+  catch (e) {
+    let linea = e && e.__linea;
+    if (linea == null) { const n = lineaDe(e); if (n != null && !isNaN(OFF)) linea = n - OFF; }
+    const msg = String((e && e.message) || e).replace(/__yo\\(\\d+\\)\\./g, "yo.").replace(/__log\\(\\d+\\)/g, "log");
+    postMessage({ type: "error", mensaje: msg, linea: linea == null ? null : linea });
+  }
+};
+`;
+  const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+
+  // Cada `yo.` y `log(` lleva su número de línea, para iluminarla mientras corre.
+  function instrumentar(src) {
+    return src.split("\n").map((l, i) => l
+      .replace(/(?<![\w.$])yo\s*\./g, `__yo(${i + 1}).`)
+      .replace(/(?<![\w.$])log\s*\(/g, `__log(${i + 1})(`)
+    ).join("\n");
+  }
+
+  // ---------- Modelo del programa ----------
+  let sigId = 1;
+  const nuevoId = () => `n${sigId++}`;
+  function conIds(lista) {
+    return lista.map(n => {
+      const c = { ...n, id: nuevoId() };
+      if (c.cond) c.cond = { ...c.cond };
+      if (c.cuerpo) c.cuerpo = conIds(c.cuerpo);
+      if (c.t === "si") c.sino = conIds(c.sino || []);
+      return c;
+    });
+  }
+  const raizDe = (lista) => ({ t: "programa", id: "raiz", cuerpo: conIds(lista) });
+  function recorrer(lista, fn, padre = "raiz", rama = "cuerpo") {
+    lista.forEach((n, i) => {
+      fn(n, padre, rama, i, lista);
+      if (n.cuerpo) recorrer(n.cuerpo, fn, n.id, "cuerpo");
+      if (n.sino) recorrer(n.sino, fn, n.id, "sino");
+    });
+  }
+  function buscar(prog, id) {
+    if (id === "raiz") return { nodo: prog };
+    let res = null;
+    recorrer(prog.cuerpo, (n, padre, rama, idx, lista) => { if (n.id === id) res = { nodo: n, padre, rama, idx, lista }; });
+    return res;
+  }
+  function listaDe(prog, padre, rama) { const n = buscar(prog, padre).nodo; return n[rama]; }
+  function contarNodos(lista) { let c = 0; recorrer(lista, () => c++); return c; }
+  const esContenedor = (n) => !!n.cuerpo;
+
+  // Árbol → JavaScript, con el nodo de cada línea para iluminar bloques.
+  function generar(prog) {
+    const lineas = [], mapa = [];
+    const emit = (txt, id, nivel) => { lineas.push("  ".repeat(nivel) + txt); mapa.push(id); };
+    const vars = ["i", "j", "k", "m", "n"];
+    const q = (s) => JSON.stringify(s);
+    const cond = (c) => `await yo.cuantos(${q(c.lugar)}, ${q(c.mat)}) ${OP_JS[c.op]} ${c.n}`;
+    (function bloque(lista, nivel, prof) {
+      for (const n of lista) {
+        if (n.t === "recoger") emit(`await yo.recoger(${q(n.origen)}, ${q(n.mat)});`, n.id, nivel);
+        else if (n.t === "entregar") emit(`await yo.entregar(${q(n.destino)});`, n.id, nivel);
+        else if (n.t === "esperar") emit(`await yo.esperar(${n.s});`, n.id, nivel);
+        else if (n.t === "repetir") {
+          const v = vars[prof] || `i${prof}`;
+          emit(`for (let ${v} = 0; ${v} < ${n.n}; ${v}++) {`, n.id, nivel);
+          bloque(n.cuerpo, nivel + 1, prof + 1);
+          emit("}", n.id, nivel);
+        } else if (n.t === "mientras") {
+          emit(`while (${cond(n.cond)}) {`, n.id, nivel);
+          bloque(n.cuerpo, nivel + 1, prof);
+          emit("}", n.id, nivel);
+        } else if (n.t === "si") {
+          emit(`if (${cond(n.cond)}) {`, n.id, nivel);
+          bloque(n.cuerpo, nivel + 1, prof);
+          if (n.sino.length) { emit("} else {", n.id, nivel); bloque(n.sino, nivel + 1, prof); }
+          emit("}", n.id, nivel);
+        }
+      }
+    })(prog.cuerpo, 0, 0);
+    return { codigo: lineas.join("\n") + "\n", mapa };
+  }
+
+  // JavaScript → árbol, solo para lo que los bloques saben representar.
+  class NoTraducible extends Error {}
+  function parsear(src) {
+    if (typeof acorn === "undefined") throw new NoTraducible("No se pudo cargar el traductor (sin conexión). El programa se queda en texto.");
+    let ast;
+    try { ast = acorn.parse(src, { ecmaVersion: 2022, allowAwaitOutsideFunction: true, locations: true }); }
+    catch (e) { throw new NoTraducible(`El texto tiene un error de sintaxis (${e.message}).`); }
+    const linea = (n) => n.loc.start.line;
+    const no = (n, que) => { throw new NoTraducible(`Línea ${linea(n)}: ${que} todavía no tiene bloque.`); };
+    const str = (a) => a && a.type === "Literal" && typeof a.value === "string";
+    const num = (a) => a && a.type === "Literal" && typeof a.value === "number";
+    const llamadaYo = (e) => {
+      if (!e || e.type !== "AwaitExpression") return null;
+      const c = e.argument;
+      if (c.type !== "CallExpression" || c.callee.type !== "MemberExpression" || c.callee.object.name !== "yo" || c.callee.computed) return null;
+      return { verbo: c.callee.property.name, args: c.arguments };
+    };
+    const OPS_AST = { ">": ">", ">=": ">=", "<": "<", "<=": "<=", "===": "==", "==": "==", "!==": "!=", "!=": "!=" };
+    function cond(e) {
+      if (e.type === "LogicalExpression") no(e, `«${e.operator}»`);
+      if (e.type !== "BinaryExpression" || !OPS_AST[e.operator]) no(e, "esta condición");
+      const l = llamadaYo(e.left);
+      if (!l || l.verbo !== "cuantos" || !str(l.args[0]) || !str(l.args[1]) || !num(e.right)) no(e, "una condición distinta de «await yo.cuantos(lugar, material) > número»");
+      return { lugar: l.args[0].value, mat: l.args[1].value, op: OPS_AST[e.operator], n: e.right.value };
+    }
+    const cuerpo = (s) => s.type === "BlockStatement" ? lista(s.body) : lista([s]);
+    function lista(stmts) {
+      const out = [];
+      for (const s of stmts) {
+        if (s.type === "EmptyStatement") continue;
+        if (s.type === "BlockStatement") { out.push(...lista(s.body)); continue; }
+        if (s.type === "ExpressionStatement") {
+          const l = llamadaYo(s.expression);
+          if (!l) {
+            const ex = s.expression;
+            if (ex.type === "CallExpression" && ex.callee.type === "MemberExpression" && ex.callee.object.name === "yo") no(s, "una orden sin await");
+            if (ex.type === "CallExpression" && ex.callee.name === "log") no(s, "log()");
+            no(s, "esta instrucción");
+          }
+          if (l.verbo === "recoger" && str(l.args[0]) && str(l.args[1]) && l.args.length === 2) out.push({ t: "recoger", origen: l.args[0].value, mat: l.args[1].value });
+          else if (l.verbo === "entregar" && str(l.args[0]) && l.args.length === 1) out.push({ t: "entregar", destino: l.args[0].value });
+          else if (l.verbo === "esperar" && num(l.args[0]) && l.args.length === 1) out.push({ t: "esperar", s: l.args[0].value });
+          else no(s, `yo.${l.verbo} con estos argumentos`);
+          continue;
+        }
+        if (s.type === "ForStatement") {
+          const d = s.init && s.init.type === "VariableDeclaration" && s.init.declarations.length === 1 ? s.init.declarations[0] : null;
+          const v = d && d.id.name;
+          const okInit = d && num(d.init) && d.init.value === 0;
+          const okTest = s.test && s.test.type === "BinaryExpression" && s.test.operator === "<" && s.test.left.name === v && num(s.test.right);
+          const u = s.update;
+          const okUpd = u && ((u.type === "UpdateExpression" && u.operator === "++" && u.argument.name === v) ||
+            (u.type === "AssignmentExpression" && u.operator === "+=" && u.left.name === v && num(u.right) && u.right.value === 1));
+          if (!(okInit && okTest && okUpd)) no(s, "un for distinto de «for (let i = 0; i < N; i++)»");
+          out.push({ t: "repetir", n: s.test.right.value, cuerpo: cuerpo(s.body) });
+          continue;
+        }
+        if (s.type === "WhileStatement") { out.push({ t: "mientras", cond: cond(s.test), cuerpo: cuerpo(s.body) }); continue; }
+        if (s.type === "IfStatement") {
+          const sino = !s.alternate ? [] : s.alternate.type === "IfStatement" ? lista([s.alternate]) : cuerpo(s.alternate);
+          out.push({ t: "si", cond: cond(s.test), cuerpo: cuerpo(s.consequent), sino });
+          continue;
+        }
+        if (s.type === "VariableDeclaration") no(s, "una variable");
+        if (s.type === "DoWhileStatement") no(s, "do…while");
+        if (s.type === "SwitchStatement") no(s, "switch");
+        if (s.type === "FunctionDeclaration") no(s, "una función");
+        no(s, "esta instrucción");
+      }
+      return out;
+    }
+    return raizDe(lista(ast.body));
+  }
+
+  // ---------- Estado ----------
+  let retoIdx = Math.min(RETOS.length - 1, Math.max(0, guardado.leer("reto", 0)));
+  let modo = guardado.leer("modo", "bloques");
+  let idioma = guardado.leer("idioma", "en");
+  let tamLetra = guardado.leer("letra", 14);
+  let hechos = guardado.leer("hechos", []);
+  let telemetria = guardado.leer("telemetria", []);
+  let programa = null;   // { modelo, texto, fuente: "modelo" | "texto" }
+  let cursor = { padre: "raiz", rama: "cuerpo", idx: 0 };
+  let seleccionBloque = null;
+  let slotAbierto = null; // { id, campo }
+  let mundo = null;
+  let ejec = null;
+  let llamada = null;
+  let esperandoPrograma = false;
+  let pausa = false;
+  let velocidad = 1;
+  let intento = 0;
+  let seleccionMapa = null;
+  let lineaCorre = null, lineaErr = null;
+  let mapaLineas = null;  // línea JS → id de nodo, del programa en curso
+
+  // ---------- Mundo ----------
+  function crearMundo(reto, nIntento) {
+    const entidades = reto.entidades.map(e => {
+      const c = JSON.parse(JSON.stringify(e));
+      if (c.tipo === "maquina") Object.assign(c, { entrada: 0, procesando: false, progreso: 0, recibido: {}, producido: 0, derrames: 0, suelo: [] });
+      if (c.tipo === "bodega") { c.stock = c.stock || {}; c.recibido = {}; }
+      return c;
+    });
+    let stockOculto = null;
+    if (reto.stockPorIntento) {
+      stockOculto = reto.stockPorIntento[(Math.max(1, nIntento) - 1) % reto.stockPorIntento.length];
+      const e = entidades.find(x => x.oculto);
+      e.stock[Object.keys(e.stock)[0]] = stockOculto;
+    }
+    return {
+      t: 0, activo: false, fin: null, derrames: 0, vacios: 0, ultimoVacio: null, revelado: false, stockOculto,
+      entidades, porId: Object.fromEntries(entidades.map(e => [e.id, e])),
+      robot: { x: reto.robot.x, y: reto.robot.y, carga: null, tarea: null },
+      eventos: [], verbos: {}, resultados: {},
+    };
+  }
+
+  function ruta(dest) {
+    const r = mundo.robot, wps = [];
+    if (Math.abs(r.x - dest.x) > 1e-6) wps.push({ x: dest.x, y: r.y });
+    if (Math.abs(r.y - dest.y) > 1e-6) wps.push({ x: dest.x, y: dest.y });
+    return wps;
+  }
+
+  function paso(dt) {
+    mundo.t += dt;
+    for (const e of mundo.entidades) {
+      if (e.tipo !== "maquina") continue;
+      if (e.procesando) {
+        e.progreso += dt;
+        if (e.progreso >= e.tProceso - 1e-9) { e.procesando = false; e.producido++; }
+      }
+      if (!e.procesando && e.entrada > 0) { e.entrada--; e.procesando = true; e.progreso = 0; }
+    }
+    const r = mundo.robot, tarea = r.tarea;
+    if (tarea) {
+      let mov = VEL * dt;
+      while (mov > 0 && tarea.wps.length) {
+        const w = tarea.wps[0], dx = w.x - r.x, dy = w.y - r.y, d = Math.hypot(dx, dy);
+        if (d <= mov) { r.x = w.x; r.y = w.y; mov -= d; tarea.wps.shift(); }
+        else { r.x += dx / d * mov; r.y += dy / d * mov; mov = 0; }
+      }
+      if (!tarea.wps.length) {
+        tarea.op -= dt;
+        if (tarea.op <= 1e-9) { r.tarea = null; terminarOrden(tarea.fin()); }
+      }
+    }
+    evaluar();
+  }
+
+  function iniciarOrden(verbo, args) {
+    const r = mundo.robot;
+    if (verbo === "recoger") {
+      const [origen, mat] = args, e = mundo.porId[origen];
+      if (r.carga) return terminarOrden("manos_llenas");
+      r.tarea = { wps: ruta(e.puerta), op: OP, fin: () => {
+        if ((e.stock[mat] || 0) > 0) { e.stock[mat]--; r.carga = mat; return "ok"; }
+        mundo.vacios++; mundo.ultimoVacio = { id: e.id, mat };
+        return "viaje_vacio";
+      } };
+    } else if (verbo === "entregar") {
+      const e = mundo.porId[args[0]];
+      if (!r.carga) return terminarOrden("manos_vacias");
+      r.tarea = { wps: ruta(e.puerta), op: OP, fin: () => {
+        const mat = r.carga;
+        if (e.tipo === "bodega") { e.stock[mat] = (e.stock[mat] || 0) + 1; e.recibido[mat] = (e.recibido[mat] || 0) + 1; r.carga = null; return "ok"; }
+        if (e.acepta !== mat) return "rechazado";
+        if (e.entrada >= e.cap) { e.derrames++; e.suelo.push(mat); mundo.derrames++; r.carga = null; return "derrame"; }
+        e.entrada++; e.recibido[mat] = (e.recibido[mat] || 0) + 1; r.carga = null; return "ok";
+      } };
+    } else if (verbo === "esperar") {
+      r.tarea = { wps: [], op: args[0], fin: () => "ok" };
+    }
+    if (r.tarea) r.tarea.op0 = r.tarea.op;
+  }
+
+  function sensor(lugar, mat) {
+    const e = mundo.porId[lugar];
+    if (e.tipo === "bodega") return e.stock[mat] || 0;
+    return e.acepta === mat ? e.entrada : 0;
+  }
+
+  function validar(verbo, args) {
+    const ids = mundo.entidades.map(e => `"${e.id}"`).join(", ");
+    const matOk = (m, ej) => m === undefined ? `Falta el material. Por ejemplo ${ej}.` : !MATERIALES.includes(m) ? `No existe el material ${JSON.stringify(m)}. Hay ${MATERIALES.map(x => `"${x}"`).join(" y ")}.` : null;
+    if (verbo === "recoger") {
+      const [origen, mat] = args;
+      if (typeof origen !== "string") return `recoger necesita el ID de una bodega entre comillas, por ejemplo yo.recoger("ENT-1", "cobre").`;
+      const e = mundo.porId[origen];
+      if (!e) return `No hay ningún edificio "${origen}". En este mapa hay ${ids}.`;
+      if (e.tipo !== "bodega") return `"${origen}" es una máquina: solo se recoge en bodegas.`;
+      return matOk(mat, `yo.recoger("${origen}", "cobre")`);
+    } else if (verbo === "entregar") {
+      const [destino] = args;
+      if (typeof destino !== "string") return `entregar necesita el ID del destino entre comillas, por ejemplo yo.entregar("FUN").`;
+      if (!mundo.porId[destino]) return `No hay ningún edificio "${destino}". En este mapa hay ${ids}.`;
+    } else if (verbo === "esperar") {
+      const [s] = args;
+      if (typeof s !== "number" || !(s > 0) || s > 60) return `esperar necesita un número de segundos entre 0 y 60, por ejemplo yo.esperar(2).`;
+    } else if (verbo === "cuantos") {
+      const [lugar, mat] = args;
+      if (typeof lugar !== "string") return `cuantos necesita el ID de un edificio entre comillas, por ejemplo yo.cuantos("ENT-1", "cobre").`;
+      if (!mundo.porId[lugar]) return `No hay ningún edificio "${lugar}". En este mapa hay ${ids}.`;
+      return matOk(mat, `yo.cuantos("${lugar}", "cobre")`);
+    }
+    return null;
+  }
+
+  function metaCumplida(m) {
+    const e = mundo.porId[m.id];
+    if (m.tipo === "vaciar") return (e.stock[m.mat] || 0) === 0 && mundo.robot.carga !== m.mat;
+    return ((e.recibido && e.recibido[m.mat]) || 0) >= m.n;
+  }
+  function faltantes() {
+    return RETOS[retoIdx].metas.filter(m => !metaCumplida(m)).map(m => {
+      const e = mundo.porId[m.id];
+      if (m.tipo === "vaciar") return `${m.id} aún tiene ${e.stock[m.mat]} de ${m.mat}`;
+      return `${m.id} ${m.n - ((e.recibido[m.mat]) || 0)} de ${m.mat}`;
+    });
+  }
+
+  function evaluar() {
+    if (!mundo.activo || mundo.fin) return;
+    const reto = RETOS[retoIdx];
+    if (reto.maxDerrames != null && mundo.derrames > reto.maxDerrames) {
+      const e = mundo.entidades.find(x => x.derrames > 0);
+      return terminar("fallo", "derrame", `Se derramó ${e.suelo[e.suelo.length - 1]} en ${e.id}: su entrada estaba llena. Este reto no admite derrames.`);
+    }
+    if (reto.maxVacios != null && mundo.vacios > reto.maxVacios) {
+      const v = mundo.ultimoVacio;
+      return terminar("fallo", "vacio", `R1 hizo un viaje vacío a ${v.id}: ya no quedaba ${v.mat}. Este reto no admite viajes vacíos.`);
+    }
+    if (reto.tiempoMax != null && mundo.t > reto.tiempoMax + 1e-9) {
+      return terminar("fallo", "tiempo", `Se acabaron los ${reto.tiempoMax} s. Faltó: ${faltantes().join(", ")}.`);
+    }
+    if (mundo.t > T_LIMITE) return terminar("fallo", "limite", `El programa sigue después de ${T_LIMITE} s de juego. ¿Hay un bucle que nunca termina?`);
+    // El reto se cumple cuando el programa termina: así un for demasiado largo
+    // todavía tiene que hacer sus viajes de más.
+    if (ejec && ejec.acabado && !mundo.robot.tarea && !llamada) {
+      if (!faltantes().length) return terminar("victoria", null, null);
+      return terminar("fallo", "incompleto", `El programa terminó y falta: ${faltantes().join(", ")}.`);
+    }
+  }
+
+  // ---------- Ciclo del programa ----------
+  function codigoAEjecutar() {
+    if (modo !== "js" || programa.fuente === "modelo") {
+      const g = generar(programa.modelo);
+      return { codigo: g.codigo, mapa: g.mapa };
+    }
+    return { codigo: $codigo.value, mapa: null };
+  }
+
+  function ejecutar() {
+    cerrarPrograma();
+    cerrarHoja();
+    intento++;
+    mundo = crearMundo(RETOS[retoIdx], intento);
+    mundo.activo = true;
+    lineaCorre = lineaErr = null;
+    limpiarConsola();
+    ocultarBanner();
+    const { codigo, mapa } = codigoAEjecutar();
+    mapaLineas = mapa;
+    const w = new Worker(WORKER_URL);
+    ejec = { worker: w, acabado: false, ultimoMsg: performance.now(), codigo, inicio: new Date().toISOString(), sensoresSeguidos: 0, modo };
+    w.onmessage = (ev) => alMensaje(w, ev.data);
+    w.onerror = (ev) => { ev.preventDefault(); errorPrograma(ev.message || "Error en el programa.", null); };
+    w.postMessage({ type: "run", codigo: instrumentar(codigo) });
+    pausa = false;
+    esperandoPrograma = true;
+    pintarControles();
+    pintarEdicion();
+  }
+
+  const fmtArgs = (args) => args.map(a => a === undefined ? "" : JSON.stringify(a)).join(", ");
+
+  function alMensaje(w, m) {
+    if (!ejec || ejec.worker !== w) return;
+    ejec.ultimoMsg = performance.now();
+    if (m.type !== "log") esperandoPrograma = false;
+    if (m.type === "call") {
+      const texto = `${m.verbo}(${fmtArgs(m.args)})`;
+      if (llamada) return errorPrograma(`Falta await en la línea ${llamada.linea}: R1 seguía con ${llamada.texto} cuando llegó la orden de la línea ${m.linea}.`, llamada.linea);
+      marcarLinea(m.linea);
+      mundo.verbos[m.verbo] = (mundo.verbos[m.verbo] || 0) + 1;
+      const err = validar(m.verbo, m.args);
+      if (err) { esperandoPrograma = true; w.postMessage({ type: "res", id: m.id, error: err }); return; }
+      if (m.verbo === "cuantos") {
+        // Sensor: responde al instante y el reloj no avanza.
+        if (++ejec.sensoresSeguidos > MAX_SENSORES) return errorPrograma(`R1 consultó el sensor ${MAX_SENSORES} veces sin hacer nada más: el bucle no avanza. ¿Falta una orden dentro del «while»?`, m.linea);
+        const v = sensor(m.args[0], m.args[1]);
+        mundo.eventos.push({ t: +mundo.t.toFixed(2), linea: m.linea, orden: texto, resultado: String(v), sensor: true });
+        consola("sensor", m.linea, `${escapar(texto)} → <b>${v}</b>`);
+        pintarEventos();
+        esperandoPrograma = true;
+        w.postMessage({ type: "res", id: m.id, valor: v });
+        return;
+      }
+      ejec.sensoresSeguidos = 0;
+      llamada = { id: m.id, linea: m.linea, texto };
+      iniciarOrden(m.verbo, m.args);
+    } else if (m.type === "log") {
+      consola("log", m.linea, m.texto);
+    } else if (m.type === "done") {
+      ejec.acabado = true;
+      evaluar();
+    } else if (m.type === "error") {
+      errorPrograma(m.mensaje, m.linea);
+    }
+  }
+
+  function terminarOrden(res) {
+    if (!llamada) return;
+    const l = llamada;
+    llamada = null;
+    mundo.resultados[res] = (mundo.resultados[res] || 0) + 1;
+    mundo.eventos.push({ t: +mundo.t.toFixed(2), linea: l.linea, orden: l.texto, resultado: res });
+    consola(claseRes(res), l.linea, `${escapar(l.texto)} → <b>"${res}"</b>`);
+    pintarEventos();
+    if (ejec) { ejec.ultimoMsg = performance.now(); esperandoPrograma = true; ejec.worker.postMessage({ type: "res", id: l.id, valor: res }); }
+  }
+
+  function errorPrograma(mensaje, linea) {
+    if (!ejec) return;
+    lineaErr = linea; lineaCorre = null; pintarMarcas();
+    consola("bad", linea, escapar(mensaje));
+    terminar("error", "error", mensaje, linea);
+  }
+
+  function cerrarPrograma() {
+    if (ejec) ejec.worker.terminate();
+    ejec = null;
+    llamada = null;
+    esperandoPrograma = false;
+    pausa = false;
+    if (mundo) { mundo.robot.tarea = null; mundo.activo = false; }
+  }
+
+  function terminar(resultado, motivo, texto, linea) {
+    if (!mundo || mundo.fin) return;
+    const codigo = ejec ? ejec.codigo : "";
+    const inicio = ejec ? ejec.inicio : new Date().toISOString();
+    const modoIntento = ejec ? ejec.modo : modo;
+    mundo.fin = resultado;
+    mundo.revelado = true;
+    cerrarPrograma();
+    if (resultado !== "error") { lineaCorre = null; pintarMarcas(); }
+    const reto = RETOS[retoIdx];
+    const lineas = codigo.split("\n").filter(l => l.trim() && !l.trim().startsWith("//")).length;
+    telemetria.push({
+      sandbox: "02_tres_vistas", reto: retoIdx + 1, intento, inicio, modo: modoIntento, idioma,
+      resultado, motivo, mensaje: texto, linea: linea ?? null,
+      tiempoJuego: +mundo.t.toFixed(2), lineas, bloques: modoIntento === "js" && programa.fuente === "texto" ? null : contarNodos(programa.modelo.cuerpo),
+      derrames: mundo.derrames, viajesVacios: mundo.vacios, stockOculto: mundo.stockOculto,
+      verbos: mundo.verbos, resultados: mundo.resultados, codigo,
+    });
+    guardado.escribir("telemetria", telemetria);
+    const revela = mundo.stockOculto != null ? ` Esta vez llegaron ${mundo.stockOculto} de cobre; en el próximo intento llegará otra cantidad.` : "";
+    if (resultado === "victoria") {
+      if (!hechos.includes(retoIdx)) { hechos.push(retoIdx); guardado.escribir("hechos", hechos); }
+      const sig = retoIdx + 1 < RETOS.length;
+      const base = reto.maxDerrames === 0 && reto.tiempoMax ? "Sin derrames y dentro del tiempo." : reto.maxDerrames === 0 ? "Sin derrames." : reto.maxVacios === 0 ? "Sin viajes vacíos." : reto.tiempoMax ? `Dentro del tiempo (${reto.tiempoMax} s).` : "Todo entregado.";
+      mostrarBanner("victoria", "Reto cumplido", escapar(base + revela),
+        `${mundo.t.toFixed(1)} s de juego · ${lineas} líneas de JS · intento ${intento}`,
+        sig ? [["Siguiente reto", "primario", () => elegirReto(retoIdx + 1)], ["Otra vez", "", ocultarBanner]] : [["Otra vez", "primario", ocultarBanner]]);
+      pintarRetos();
+    } else if (resultado === "fallo") {
+      mostrarBanner("fallo", "Aún no", escapar(texto + revela), `Pista: ${reto.pista}`, [["Editar programa", "primario", ocultarBanner]]);
+    } else if (resultado === "error") {
+      mostrarBanner("fallo", linea ? `Error en la línea ${linea}` : "Error en el programa", escapar(texto), null, [["Editar programa", "primario", () => { ocultarBanner(); if (modo === "js") irALinea(linea); }]]);
+    }
+    pintarControles();
+    pintarResumen();
+    pintarEdicion();
+    metasClave = "";
+  }
+
+  function detener() {
+    if (!ejec) return;
+    consola("warn", null, "Programa detenido.");
+    terminar("detenido", "detenido", null);
+  }
+
+  // ---------- Bucle de juego ----------
+  let ultimo = performance.now(), acum = 0;
+  function bucle(now) {
+    const real = Math.min(0.25, (now - ultimo) / 1000);
+    ultimo = now;
+    if (mundo.activo && !pausa && !esperandoPrograma) {
+      acum += real * velocidad;
+      while (acum >= DT && mundo.activo && !esperandoPrograma) { paso(DT); acum -= DT; }
+    } else acum = 0;
+    if (ejec && !ejec.acabado && !llamada && now - ejec.ultimoMsg > VIGIA_MS) {
+      errorPrograma(`Un bucle giró ${VIGIA_MS / 1000} s sin ningún await, así que R1 nunca recibió órdenes. Cada vuelta necesita al menos un await yo.….`, lineaCorre);
+    }
+    dibujar();
+    pintarHud();
+    if (marcasSucias) pintarMarcasYa();
+    if (eventosSucios) pintarEventosYa();
+    requestAnimationFrame(bucle);
+  }
+
+  // ---------- Dibujo ----------
+  const $lienzo = document.getElementById("lienzo");
+  const ctx = $lienzo.getContext("2d");
+  let colores = {};
+  function leerColores() {
+    const s = getComputedStyle(document.documentElement);
+    for (const k of ["bg", "surface", "ink", "muted", "line", "grid", "building", "building-top", "edge", "accent", "accent-soft", "cobre", "silicio", "ok", "bad", "bad-soft"])
+      colores[k] = s.getPropertyValue(`--${k}`).trim();
+  }
+  leerColores();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", leerColores);
+  new MutationObserver(leerColores).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+  function dibujar() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = $lienzo.clientWidth, T = W / COLS, H = T * ROWS;
+    if ($lienzo.width !== Math.round(W * dpr) || $lienzo.height !== Math.round(H * dpr)) {
+      $lienzo.width = Math.round(W * dpr); $lienzo.height = Math.round(H * dpr); $lienzo.style.height = `${H}px`;
+    }
+    const c = colores;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = c.surface; ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < COLS; i++) { ctx.moveTo(Math.round(i * T) + .5, 0); ctx.lineTo(Math.round(i * T) + .5, H); }
+    for (let j = 1; j < ROWS; j++) { ctx.moveTo(0, Math.round(j * T) + .5); ctx.lineTo(W, Math.round(j * T) + .5); }
+    ctx.stroke();
+
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = c.edge; ctx.lineWidth = 1;
+    for (const e of mundo.entidades) { rr(e.puerta.x * T + T * .3, e.puerta.y * T + T * .3, T * .4, T * .4, 3); ctx.stroke(); }
+    ctx.setLineDash([]);
+
+    for (const e of mundo.entidades) dibujarEntidad(e, T);
+
+    for (const e of mundo.entidades) {
+      if (!e.suelo || !e.suelo.length) continue;
+      const cx = (e.puerta.x + .5) * T, cy = (e.puerta.y + .5) * T + T * .32;
+      ctx.fillStyle = c["bad-soft"]; ctx.beginPath(); ctx.ellipse(cx, cy, T * .34, T * .14, 0, 0, Math.PI * 2); ctx.fill();
+      e.suelo.slice(0, 6).forEach((m, i) => {
+        ctx.fillStyle = c[m]; ctx.beginPath(); ctx.arc(cx - T * .22 + (i % 3) * T * .22, cy - T * .03 + Math.floor(i / 3) * T * .08, T * .06, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = c.bad; ctx.font = `700 ${Math.max(T * .17, 9)}px Archivo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(`derrame ×${e.suelo.length}`, cx, cy + T * .1);
+    }
+
+    const r = mundo.robot;
+    if (r.tarea && r.tarea.wps.length) {
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo((r.x + .5) * T, (r.y + .5) * T);
+      for (const w of r.tarea.wps) ctx.lineTo((w.x + .5) * T, (w.y + .5) * T);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    const px = (r.x + .5) * T, py = (r.y + .5) * T;
+    if (r.tarea && !r.tarea.wps.length) {
+      ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, T * .38, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, r.tarea.op) / (r.tarea.op0 || OP)), false); ctx.stroke();
+    }
+    ctx.fillStyle = c.ink; ctx.beginPath(); ctx.arc(px, py, T * .28, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c.surface; ctx.font = `700 ${Math.max(T * .2, 10)}px Archivo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("R1", px, py + 1);
+    if (r.carga) {
+      ctx.fillStyle = c[r.carga]; ctx.strokeStyle = c.surface; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px + T * .24, py - T * .24, T * .13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  function dibujarEntidad(e, T) {
+    const c = colores, x = e.x * T + T * .07, y = e.y * T + T * .07, s = T * .86;
+    ctx.fillStyle = c.edge; rr(x, y + T * .05, s, s, T * .1); ctx.fill();
+    ctx.fillStyle = c.building; rr(x, y, s, s, T * .1); ctx.fill();
+    ctx.fillStyle = c["building-top"]; rr(x + T * .05, y + T * .05, s - T * .1, T * .2, T * .05); ctx.fill();
+    const marcado = seleccionMapa === e.id || (slotAbierto && esCampoLugar(slotAbierto.campo) && opcionesCampo(slotAbierto.campo).includes(e.id));
+    if (marcado) {
+      ctx.strokeStyle = c.accent; ctx.lineWidth = 2.5;
+      if (slotAbierto && seleccionMapa !== e.id) ctx.setLineDash([4, 3]);
+      rr(x - 2, y - 2, s + 4, s + T * .05 + 4, T * .12); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = c.ink; ctx.font = `700 ${Math.max(T * .17, 9.5)}px Archivo, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(e.id, x + T * .09, y + T * .15);
+
+    if (e.tipo === "bodega") {
+      if (e.oculto && !mundo.revelado) {
+        // Lona: el contenido no se ve, hay que medirlo con el sensor.
+        ctx.save(); rr(x + T * .08, y + T * .3, s - T * .16, s - T * .4, T * .06); ctx.clip();
+        ctx.strokeStyle = c.edge; ctx.lineWidth = 1;
+        for (let k = -s; k < s * 2; k += T * .12) { ctx.beginPath(); ctx.moveTo(x + k, y + T * .3); ctx.lineTo(x + k - s, y + s); ctx.stroke(); }
+        ctx.restore();
+        ctx.fillStyle = c.ink; ctx.font = `800 ${Math.max(T * .32, 13)}px Archivo, sans-serif`; ctx.textAlign = "center";
+        ctx.fillText("?", x + s / 2, y + s * .62);
+        return;
+      }
+      const mats = MATERIALES.filter(m => m in e.stock);
+      mats.forEach((m, i) => {
+        const yy = y + T * .44 + i * T * .22;
+        ctx.fillStyle = c[m]; ctx.beginPath(); ctx.arc(x + T * .2, yy, T * .075, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = e.stock[m] ? c.ink : c.muted; ctx.font = `600 ${Math.max(T * .17, 9)}px "JetBrains Mono", monospace`;
+        ctx.textAlign = "left";
+        ctx.fillText(`${m.slice(0, 2)} ${e.stock[m]}`, x + T * .33, yy + 1);
+      });
+    } else {
+      const cx = x + s / 2, cy = y + T * .45, Rr = T * .14;
+      ctx.strokeStyle = c[e.acepta]; ctx.lineWidth = T * .05;
+      ctx.beginPath(); ctx.arc(cx, cy, Rr, 0, Math.PI * 2); ctx.stroke();
+      if (e.procesando) {
+        ctx.fillStyle = c[e.acepta]; ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, Rr * .8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (e.progreso / e.tProceso)); ctx.closePath(); ctx.fill();
+      }
+      const sy = y + T * .7, n = e.cap;
+      if (n <= 4) {
+        const sw = T * .13, gap = T * .05, tot = n * sw + (n - 1) * gap;
+        for (let i = 0; i < n; i++) {
+          const sx = cx - tot / 2 + i * (sw + gap);
+          ctx.lineWidth = 1.5; ctx.strokeStyle = c.edge; rr(sx, sy - sw / 2, sw, sw, 2); ctx.stroke();
+          if (i < e.entrada) { ctx.fillStyle = c[e.acepta]; rr(sx + 2, sy - sw / 2 + 2, sw - 4, sw - 4, 1); ctx.fill(); }
+        }
+      } else {
+        ctx.fillStyle = c.muted; ctx.font = `600 ${Math.max(T * .15, 9)}px "JetBrains Mono", monospace`; ctx.textAlign = "center";
+        ctx.fillText(`${e.entrada}/${n}`, cx, sy);
+      }
+    }
+  }
+
+  $lienzo.addEventListener("click", (ev) => {
+    const rect = $lienzo.getBoundingClientRect(), T = rect.width / COLS;
+    const gx = Math.floor((ev.clientX - rect.left) / T), gy = Math.floor((ev.clientY - rect.top) / T);
+    const e = mundo.entidades.find(x => x.x === gx && x.y === gy);
+    // Con un lugar del bloque abierto, tocar el mapa lo elige.
+    if (e && slotAbierto && esCampoLugar(slotAbierto.campo) && opcionesCampo(slotAbierto.campo).includes(e.id)) {
+      fijarCampo(slotAbierto.id, slotAbierto.campo, e.id);
+      cerrarHoja();
+      return;
+    }
+    seleccionMapa = e ? e.id : null;
+    pintarInfo();
+  });
+
+  // ---------- Interfaz ----------
+  const $ = (id) => document.getElementById(id);
+  const $codigo = $("codigo"), $gutter = $("gutter"), $banda = $("banda"), $consola = $("consola"), $prog = $("prog"), $espejo = $("espejo");
+  const escapar = (s) => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const claseRes = (r) => r === "ok" ? "ok" : r === "derrame" ? "bad" : "warn";
+
+  function pintarRetos() {
+    $("retos").innerHTML = RETOS.map((r, i) =>
+      `<button type="button" class="reto-btn${hechos.includes(i) ? " hecho" : ""}" aria-pressed="${i === retoIdx}" data-i="${i}"><span class="n">${hechos.includes(i) ? "✓" : i + 1}</span>${r.titulo}${r.nuevo ? ` <span class="nuevo">nuevo</span>` : ""}</button>`).join("");
+  }
+  $("retos").addEventListener("click", (ev) => { const b = ev.target.closest(".reto-btn"); if (b) elegirReto(+b.dataset.i); });
+
+  function programaInicial(i) {
+    const modelo = raizDe(RETOS[i].inicial);
+    return { modelo, texto: generar(modelo).codigo, fuente: "modelo" };
+  }
+  function cargarPrograma(i) {
+    const p = guardado.leer(`prog-${i}`, null);
+    if (!p || !p.modelo) return programaInicial(i);
+    // Renumera ids para que no choquen entre retos.
+    const modelo = raizDe(p.modelo.cuerpo);
+    return { modelo, texto: p.texto ?? generar(modelo).codigo, fuente: p.fuente || "modelo" };
+  }
+  function guardarPrograma() { guardado.escribir(`prog-${retoIdx}`, programa); }
+
+  function elegirReto(i) {
+    cerrarPrograma();
+    cerrarHoja();
+    retoIdx = i; guardado.escribir("reto", i);
+    intento = telemetria.filter(t => t.reto === i + 1).length;
+    const reto = RETOS[i];
+    mundo = crearMundo(reto, intento + 1);
+    programa = cargarPrograma(i);
+    cursor = { padre: "raiz", rama: "cuerpo", idx: programa.modelo.cuerpo.length };
+    seleccionBloque = null; seleccionMapa = null; lineaCorre = lineaErr = null; mapaLineas = null;
+    $("titulo").textContent = reto.titulo;
+    $("objetivo-txt").textContent = reto.objetivo;
+    $("leccion").textContent = reto.leccion;
+    ocultarBanner(); limpiarConsola(); pintarRetos(); pintarInfo(); pintarEventos(); pintarResumen(); pintarControles();
+    metasClave = "";
+    aplicarModo(modo, true);
+  }
+
+  let metasClave = "";
+  function pintarHud() {
+    const reto = RETOS[retoIdx];
+    const $r = $("reloj");
+    $r.textContent = reto.tiempoMax ? `t ${mundo.t.toFixed(1)} / ${reto.tiempoMax} s` : `t ${mundo.t.toFixed(1)} s`;
+    $r.classList.toggle("tarde", !!reto.tiempoMax && mundo.t > reto.tiempoMax);
+    const est = reto.metas.map(m => metaCumplida(m) ? 1 : 0).join("") + reto.metas.map(m => { const e = mundo.porId[m.id]; return m.tipo === "vaciar" ? e.stock[m.mat] : (e.recibido[m.mat] || 0); }).join(",");
+    const clave = est + "|" + mundo.derrames + "|" + mundo.vacios + "|" + (mundo.t > (reto.tiempoMax || Infinity)) + "|" + mundo.revelado;
+    if (clave === metasClave) return;
+    metasClave = clave;
+    let html = reto.metas.map(m => {
+      const e = mundo.porId[m.id], ok = metaCumplida(m);
+      if (m.tipo === "vaciar") {
+        const quedan = e.oculto && !mundo.revelado ? "?" : e.stock[m.mat];
+        return `<span class="meta${ok ? " cumplida" : ""}"><i class="pt" style="background:var(--${m.mat})"></i>${m.id} vacía · quedan ${quedan}</span>`;
+      }
+      const v = Math.min(m.n, e.recibido[m.mat] || 0);
+      return `<span class="meta${ok ? " cumplida" : ""}"><i class="pt" style="background:var(--${m.mat})"></i>${m.id} ← ${m.mat} ${v}/${m.n}</span>`;
+    }).join("");
+    if (reto.maxDerrames != null) html += `<span class="meta${mundo.derrames > reto.maxDerrames ? " rota" : ""}">derrames ${mundo.derrames}/${reto.maxDerrames}</span>`;
+    if (reto.maxVacios != null) html += `<span class="meta${mundo.vacios > reto.maxVacios ? " rota" : ""}">viajes vacíos ${mundo.vacios}/${reto.maxVacios}</span>`;
+    if (reto.tiempoMax != null) html += `<span class="meta${mundo.t > reto.tiempoMax ? " rota" : ""}">≤ ${reto.tiempoMax} s</span>`;
+    $("metas").innerHTML = html;
+    if (seleccionMapa) pintarInfo();
+  }
+
+  function pintarInfo() {
+    const $i = $("info");
+    const e = seleccionMapa && mundo.porId[seleccionMapa];
+    if (!e) { $i.innerHTML = `<span>Toca un edificio para ver qué guarda.</span>`; return; }
+    let desc;
+    if (e.tipo === "bodega" && e.oculto && !mundo.revelado) desc = `${e.nombre} · tapada: el contenido cambia en cada intento. Mídelo con el sensor.`;
+    else if (e.tipo === "bodega") desc = `${e.nombre} · ` + (MATERIALES.filter(m => m in e.stock).map(m => `${m} ${e.stock[m]}`).join(" · ") || "vacía");
+    else desc = `${e.nombre} · acepta ${e.acepta} · entrada ${e.entrada}/${e.cap} · ${e.tProceso} s por pieza`;
+    $i.innerHTML = `<span><b>${e.id}</b> ${escapar(desc)}</span>` + (modo === "js" ? `<button type="button" class="btn chico" id="b-insertar-id">Insertar "${e.id}"</button>` : "");
+    const b = $("b-insertar-id");
+    if (b) { b.addEventListener("pointerdown", (ev) => ev.preventDefault()); b.addEventListener("click", () => insertarId(e.id)); }
+  }
+
+  function pintarControles() {
+    const corriendo = !!ejec;
+    const $e = $("b-ejecutar");
+    $e.textContent = corriendo ? "■ Detener" : "▶ Ejecutar";
+    $e.classList.toggle("primario", !corriendo); $e.classList.toggle("peligro", corriendo);
+    const $p = $("b-pausa");
+    $p.disabled = !corriendo; $p.textContent = pausa ? "Seguir" : "Pausa";
+    $("b-vel").textContent = `${velocidad}×`;
+    $("intento-txt").textContent = `Intento ${intento + (corriendo ? 0 : 1)} · reto ${retoIdx + 1}`;
+  }
+
+  $("b-ejecutar").addEventListener("click", () => ejec ? detener() : ejecutar());
+  $("b-pausa").addEventListener("click", () => { pausa = !pausa; pintarControles(); });
+  $("b-vel").addEventListener("click", () => { velocidad = velocidad === 1 ? 2 : velocidad === 2 ? 4 : 1; pintarControles(); });
+  $("b-reiniciar").addEventListener("click", () => {
+    if (ejec) terminar("detenido", "reinicio", null);
+    mundo = crearMundo(RETOS[retoIdx], intento + 1); lineaCorre = lineaErr = null; pintarMarcas(); ocultarBanner(); metasClave = ""; pintarInfo();
+  });
+  let confirmarRestaurar = false;
+  $("b-restaurar").addEventListener("click", (ev) => {
+    if (!confirmarRestaurar) { confirmarRestaurar = true; ev.target.textContent = "¿Seguro? Se pierde tu programa. Toca otra vez"; setTimeout(() => { confirmarRestaurar = false; ev.target.textContent = "Restaurar programa inicial"; }, 3000); return; }
+    confirmarRestaurar = false; ev.target.textContent = "Restaurar programa inicial";
+    programa = programaInicial(retoIdx); guardarPrograma();
+    cursor = { padre: "raiz", rama: "cuerpo", idx: programa.modelo.cuerpo.length }; seleccionBloque = null;
+    aplicarModo(modo, true);
+  });
+
+  // Pestañas
+  const TABS = ["programa", "registro", "ayuda"];
+  document.querySelector(".tabs").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".tab"); if (!b) return;
+    for (const t of TABS) { const on = `t-${t}` === b.id; $(`t-${t}`).setAttribute("aria-selected", on); $(`v-${t}`).hidden = !on; }
+    if (b.id === "t-programa" && modo === "js") medirEditor();
+  });
+
+  // Banner
+  function mostrarBanner(tipo, titulo, html, stats, acciones) {
+    const $b = $("banner");
+    $b.className = `banner ${tipo}`;
+    $b.innerHTML = `<h2>${titulo}</h2>${html ? `<p>${html}</p>` : ""}${stats ? `<p class="stats">${escapar(stats)}</p>` : ""}<div class="acciones"></div>`;
+    const $a = $b.querySelector(".acciones");
+    for (const [txt, cls, fn] of acciones) {
+      const b = document.createElement("button"); b.type = "button"; b.className = `btn chico ${cls}`; b.textContent = txt; b.addEventListener("click", fn); $a.appendChild(b);
+    }
+    $b.hidden = false;
+  }
+  function ocultarBanner() { $("banner").hidden = true; }
+
+  // Consola
+  function limpiarConsola() { $consola.innerHTML = `<div class="vacia">Aquí verás cada orden y lo que devuelve.</div>`; }
+  function consola(cls, linea, html) {
+    const v = $consola.querySelector(".vacia"); if (v) v.remove();
+    const d = document.createElement("div");
+    d.className = `c ${cls}`;
+    d.innerHTML = `<span class="l">${linea ? `L${linea}` : ""}</span><span>${cls === "log" ? escapar(html) : html}</span>`;
+    $consola.appendChild(d);
+    while ($consola.children.length > 120) $consola.firstChild.remove();
+    $consola.scrollTop = $consola.scrollHeight;
+  }
+
+  // Registro y telemetría
+  function pintarEventos() { eventosSucios = true; }
+  function pintarEventosYa() {
+    eventosSucios = false;
+    $("eventos").innerHTML = mundo.eventos.slice(-200).map(e =>
+      `<tr><td>${e.t.toFixed(2)}</td><td>${e.linea}</td><td>${escapar(e.orden)}</td><td class="${e.sensor ? "sensor" : claseRes(e.resultado)}">${escapar(e.resultado)}</td></tr>`).join("")
+      || `<tr><td colspan="4" style="color:var(--muted)">Todavía no hay órdenes en este intento.</td></tr>`;
+  }
+  function pintarResumen() {
+    const delReto = telemetria.filter(t => t.reto === retoIdx + 1);
+    const victorias = delReto.filter(t => t.resultado === "victoria");
+    const mejor = victorias.length ? Math.min(...victorias.map(v => v.tiempoJuego)).toFixed(1) + " s" : "—";
+    const primera = delReto.findIndex(t => t.resultado === "victoria");
+    const porModo = ["bloques", "pseudo", "js"].map(m => delReto.filter(t => t.modo === m).length).join(" / ");
+    const datos = [["Intentos", delReto.length], ["Cumplidos", victorias.length], ["Mejor tiempo", mejor], ["Intentos hasta cumplir", primera >= 0 ? primera + 1 : "—"], ["Bloques / pseudo / JS", porModo]];
+    $("resumen").innerHTML = datos.map(([k, v]) => `<div class="dato"><span>${k}</span><b>${v}</b></div>`).join("");
+    $("json").value = JSON.stringify(telemetria, null, 2);
+  }
+  $("b-copiar").addEventListener("click", () => {
+    const txt = JSON.stringify(telemetria, null, 2);
+    const ok = () => { $("copiado").hidden = false; setTimeout(() => $("copiado").hidden = true, 1600); };
+    const planB = () => { const d = document.querySelector("details.json"); d.open = true; $("json").focus(); $("json").select(); };
+    try { navigator.clipboard.writeText(txt).then(ok, planB); } catch { planB(); }
+  });
+  let confirmarBorrado = false;
+  $("b-borrar").addEventListener("click", (ev) => {
+    if (!confirmarBorrado) { confirmarBorrado = true; ev.target.textContent = "¿Seguro? Toca otra vez"; setTimeout(() => { confirmarBorrado = false; ev.target.textContent = "Borrar telemetría"; }, 3000); return; }
+    confirmarBorrado = false; ev.target.textContent = "Borrar telemetría";
+    telemetria = []; guardado.escribir("telemetria", telemetria); intento = 0; pintarResumen(); pintarControles();
+  });
+
+  // ---------- Modos ----------
+  function aviso(html, acciones = []) {
+    const $a = $("aviso");
+    if (!html) { $a.hidden = true; return; }
+    $a.innerHTML = `<div>${html}</div>`;
+    if (acciones.length) {
+      const fila = document.createElement("div"); fila.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+      for (const [txt, fn] of acciones) { const b = document.createElement("button"); b.type = "button"; b.className = "btn chico"; b.textContent = txt; b.addEventListener("click", fn); fila.appendChild(b); }
+      $a.appendChild(fila);
+    }
+    $a.hidden = false;
+  }
+
+  function aplicarModo(nuevo, forzar) {
+    if (ejec && !forzar) return;
+    if (nuevo !== "js" && programa.fuente === "texto") {
+      try {
+        programa.modelo = parsear($codigo.value);
+        programa.fuente = "modelo";
+        cursor = { padre: "raiz", rama: "cuerpo", idx: programa.modelo.cuerpo.length };
+        seleccionBloque = null;
+        guardarPrograma();
+      } catch (e) {
+        if (!(e instanceof NoTraducible)) throw e;
+        if (forzar) {
+          // Al cargar: el programa guardado solo existe como texto, así que se abre en JavaScript.
+          aplicarModo("js", true);
+          aviso(`Este programa se quedó en JavaScript: ${escapar(e.message)}`);
+          return;
+        }
+        let confirmar = false;
+        aviso(`No puedo pasar este texto a bloques. ${escapar(e.message)}`, [["Seguir en JavaScript", () => aviso(null)], ["Descartar el texto y volver a bloques", (ev) => {
+          if (!confirmar) { confirmar = true; ev.target.textContent = "¿Seguro? Toca otra vez"; return; }
+          programa.fuente = "modelo"; programa.texto = generar(programa.modelo).codigo; guardarPrograma(); aviso(null); aplicarModo(nuevo);
+        }]]);
+        return;
+      }
+    }
+    if (nuevo === "js" && programa.fuente === "modelo") programa.texto = generar(programa.modelo).codigo;
+    modo = nuevo; guardado.escribir("modo", modo);
+    aviso(null);
+    for (const b of document.querySelectorAll(".modo")) b.setAttribute("aria-checked", b.dataset.modo === modo);
+    $("g-idioma").style.visibility = modo === "js" ? "hidden" : "visible";
+    $prog.hidden = modo === "js";
+    $("editor").hidden = modo !== "js";
+    $("vista-js").hidden = modo === "js";
+    $("seleccion").hidden = modo === "js";
+    if (modo === "js") { $codigo.value = programa.texto; }
+    cerrarHoja();
+    pintarPaleta();
+    pintarEdicion();
+    pintarInfo();
+    if (modo === "js") medirEditor();
+  }
+  $("modos").addEventListener("click", (ev) => { const b = ev.target.closest(".modo"); if (b && b.dataset.modo !== modo) aplicarModo(b.dataset.modo); });
+  document.querySelectorAll("[data-idioma]").forEach(b => b.addEventListener("click", () => {
+    idioma = b.dataset.idioma; guardado.escribir("idioma", idioma);
+    document.querySelectorAll("[data-idioma]").forEach(x => x.setAttribute("aria-pressed", x.dataset.idioma === idioma));
+    pintarPaleta(); pintarEdicion();
+  }));
+  document.querySelectorAll("[data-idioma]").forEach(x => x.setAttribute("aria-pressed", x.dataset.idioma === idioma));
+  const TAMANOS = [12, 13, 14, 16, 18];
+  function aplicarLetra() {
+    document.querySelector(".app").style.setProperty("--code-size", `${tamLetra}px`);
+    guardado.escribir("letra", tamLetra);
+    if (modo === "js") medirEditor();
+  }
+  $("b-menos").addEventListener("click", () => { const i = TAMANOS.indexOf(tamLetra); tamLetra = TAMANOS[Math.max(0, (i < 0 ? 2 : i) - 1)]; aplicarLetra(); });
+  $("b-mas").addEventListener("click", () => { const i = TAMANOS.indexOf(tamLetra); tamLetra = TAMANOS[Math.min(TAMANOS.length - 1, (i < 0 ? 2 : i) + 1)]; aplicarLetra(); });
+
+  // ---------- Paleta ----------
+  const ATAJOS_JS = [
+    { t: "recoger", b: 'await yo.recoger("ENT-1", "cobre");' },
+    { t: "entregar", b: 'await yo.entregar("FUN");' },
+    { t: "for", b: "for (let i = 0; i < 3; i++) {\n  \n}" },
+    { t: "while", b: 'while (await yo.cuantos("ENT-1", "cobre") > 0) {\n  \n}' },
+    { t: "if / else", b: 'if (await yo.cuantos("FUN", "cobre") < 1) {\n  \n} else {\n  \n}' },
+    { t: "cuantos", b: 'await yo.cuantos("ENT-1", "cobre")', enLinea: true },
+    { t: "esperar", b: "await yo.esperar(2);" },
+  ];
+  function pintarPaleta() {
+    const $p = $("paleta");
+    $p.className = `paleta${modo === "pseudo" ? " v-pseudo-paleta" : ""}`;
+    if (modo === "js") {
+      $p.innerHTML = ATAJOS_JS.map((a, i) => `<button type="button" class="atajo" data-js="${i}">${escapar(a.t)}</button>`).join("")
+        + MATERIALES.map(m => `<button type="button" class="atajo mat" data-m="${m}"><i style="background:var(--${m})"></i>"${m}"</button>`).join("");
+      return;
+    }
+    const tx = TXT[idioma].paleta;
+    $p.innerHTML = RETOS[retoIdx].ladrillos.map(t => `<button type="button" class="ladrillo ${CATEGORIA[t]}" data-ladrillo="${t}">${escapar(tx[t])}</button>`).join("");
+  }
+  const $paleta = $("paleta");
+  $paleta.addEventListener("pointerdown", (ev) => { if (modo === "js" && ev.target.closest(".atajo")) ev.preventDefault(); });
+  $paleta.addEventListener("click", (ev) => {
+    if (ejec) return aviso("Detén el programa para editarlo.");
+    const lad = ev.target.closest("[data-ladrillo]");
+    if (lad) return agregarLadrillo(lad.dataset.ladrillo);
+    const b = ev.target.closest(".atajo"); if (!b) return;
+    if (b.dataset.m) return insertarId(b.dataset.m);
+    const a = ATAJOS_JS[+b.dataset.js];
+    if (a.enLinea) insertar(a.b); else insertarBloque(a.b);
+  });
+
+  // ---------- Edición de bloques ----------
+  const bodegas = () => mundo.entidades.filter(e => e.tipo === "bodega").map(e => e.id);
+  const maquinas = () => mundo.entidades.filter(e => e.tipo === "maquina").map(e => e.id);
+  function nuevoLadrillo(t) {
+    const b0 = bodegas()[0], m0 = maquinas()[0] || mundo.entidades[0].id;
+    const acepta = (mundo.porId[m0] && mundo.porId[m0].acepta) || "cobre";
+    const base = {
+      recoger: { t, origen: b0, mat: (mundo.porId[b0] && Object.keys(mundo.porId[b0].stock)[0]) || "cobre" },
+      entregar: { t, destino: m0 },
+      esperar: { t, s: 2 },
+      repetir: { t, n: 3, cuerpo: [] },
+      mientras: { t, cond: { lugar: b0, mat: "cobre", op: ">", n: 0 }, cuerpo: [] },
+      si: { t, cond: { lugar: m0, mat: acepta, op: "<", n: 1 }, cuerpo: [], sino: [] },
+    }[t];
+    return conIds([base])[0];
+  }
+  function cambiado() {
+    lineaErr = lineaCorre = null; mapaLineas = null;
+    programa.fuente = "modelo";
+    programa.texto = generar(programa.modelo).codigo;
+    guardarPrograma();
+    pintarEdicion();
+  }
+  function agregarLadrillo(t) {
+    const n = nuevoLadrillo(t);
+    const lista = listaDe(programa.modelo, cursor.padre, cursor.rama);
+    const idx = Math.min(cursor.idx, lista.length);
+    lista.splice(idx, 0, n);
+    seleccionBloque = n.id;
+    cursor = esContenedor(n) ? { padre: n.id, rama: "cuerpo", idx: 0 } : { padre: cursor.padre, rama: cursor.rama, idx: idx + 1 };
+    cambiado();
+  }
+  function quitar(id) { const l = buscar(programa.modelo, id); l.lista.splice(l.idx, 1); return l; }
+  function mover(id, dir) {
+    const l = buscar(programa.modelo, id);
+    const n = l.nodo;
+    if (dir < 0) {
+      if (l.idx > 0) {
+        const prev = l.lista[l.idx - 1];
+        l.lista.splice(l.idx, 1);
+        if (esContenedor(prev)) (prev.t === "si" ? prev.sino : prev.cuerpo).push(n);
+        else l.lista.splice(l.idx - 1, 0, n);
+      } else if (l.padre !== "raiz") {
+        const p = buscar(programa.modelo, l.padre);
+        l.lista.splice(0, 1);
+        if (l.rama === "sino") p.nodo.cuerpo.push(n);
+        else p.lista.splice(p.idx, 0, n);
+      } else return;
+    } else {
+      if (l.idx < l.lista.length - 1) {
+        const next = l.lista[l.idx + 1];
+        l.lista.splice(l.idx, 1);
+        if (esContenedor(next)) next.cuerpo.unshift(n);
+        else l.lista.splice(l.idx + 1, 0, n);
+      } else if (l.padre !== "raiz") {
+        const p = buscar(programa.modelo, l.padre);
+        l.lista.splice(l.idx, 1);
+        if (l.rama === "cuerpo" && p.nodo.t === "si") p.nodo.sino.unshift(n);
+        else p.lista.splice(p.idx + 1, 0, n);
+      } else return;
+    }
+    const d = buscar(programa.modelo, id);
+    cursor = { padre: d.padre, rama: d.rama, idx: d.idx + 1 };
+    cambiado();
+  }
+  function duplicar(id) {
+    const l = buscar(programa.modelo, id);
+    const copia = conIds([JSON.parse(JSON.stringify(l.nodo))])[0];
+    l.lista.splice(l.idx + 1, 0, copia);
+    seleccionBloque = copia.id;
+    cursor = { padre: l.padre, rama: l.rama, idx: l.idx + 2 };
+    cambiado();
+  }
+  function borrar(id) {
+    const l = quitar(id);
+    seleccionBloque = null;
+    cursor = { padre: l.padre, rama: l.rama, idx: l.idx };
+    cambiado();
+  }
+
+  // Campos editables
+  const esCampoLugar = (campo) => ["origen", "destino", "cond.lugar"].includes(campo);
+  function opcionesCampo(campo) {
+    if (campo === "origen") return bodegas();
+    if (campo === "destino" || campo === "cond.lugar") return mundo.entidades.map(e => e.id);
+    if (campo === "mat" || campo === "cond.mat") return MATERIALES;
+    if (campo === "cond.op") return OPS;
+    if (campo === "cond.n") return [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    if (campo === "n" || campo === "s") return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return [];
+  }
+  function leerCampo(n, campo) { return campo.startsWith("cond.") ? n.cond[campo.slice(5)] : n[campo]; }
+  function fijarCampo(id, campo, v) {
+    const n = buscar(programa.modelo, id).nodo;
+    if (campo.startsWith("cond.")) n.cond[campo.slice(5)] = v; else n[campo] = v;
+    cambiado();
+  }
+  const TITULO_CAMPO = { origen: "¿De qué bodega?", destino: "¿A dónde?", "cond.lugar": "¿Qué edificio mide el sensor?", mat: "¿Qué material?", "cond.mat": "¿Qué material?", "cond.op": "¿Cómo se compara?", "cond.n": "¿Con qué número?", n: "¿Cuántas veces?", s: "¿Cuántos segundos?" };
+  function abrirHoja(id, campo) {
+    slotAbierto = { id, campo };
+    const n = buscar(programa.modelo, id).nodo;
+    const actual = leerCampo(n, campo);
+    $("hoja-titulo").textContent = TITULO_CAMPO[campo] || "Elige";
+    $("hoja-opciones").innerHTML = opcionesCampo(campo).map(v => {
+      const mat = MATERIALES.includes(v) ? `<i style="background:var(--${v})"></i>` : "";
+      const txt = campo === "cond.op" ? OP_VER[v] : v;
+      return `<button type="button" class="opcion" data-v="${escapar(JSON.stringify(v))}" aria-pressed="${v === actual}">${mat}${escapar(txt)}</button>`;
+    }).join("");
+    $("hoja-pista").textContent = esCampoLugar(campo) ? "También puedes tocar el edificio en el mapa." : "";
+    $("hoja").hidden = false;
+    pintarEdicion();
+  }
+  function cerrarHoja() { if (!slotAbierto && $("hoja").hidden) return; slotAbierto = null; $("hoja").hidden = true; if (programa) pintarEdicion(); }
+  $("hoja-cerrar").addEventListener("click", cerrarHoja);
+  $("hoja-opciones").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".opcion"); if (!b || !slotAbierto) return;
+    fijarCampo(slotAbierto.id, slotAbierto.campo, JSON.parse(b.dataset.v));
+    cerrarHoja();
+  });
+
+  // Dibujo del programa (bloques y pseudocódigo comparten estructura)
+  function valorSlot(n, campo) {
+    const v = leerCampo(n, campo);
+    if (campo === "mat" || campo === "cond.mat") return `<i style="background:var(--${v})"></i>${escapar(v)}`;
+    if (campo === "cond.op") return escapar(OP_VER[v]);
+    return escapar(v);
+  }
+  function piezas(n, plantilla) {
+    return plantilla.map(([k, v]) => {
+      if (k === "slot") return `<button type="button" class="slot${slotAbierto && slotAbierto.id === n.id && slotAbierto.campo === v ? " abierto" : ""}" data-accion="slot" data-id="${n.id}" data-campo="${v}">${valorSlot(n, v)}</button>`;
+      if (k === "cond") return `<span class="cond">${piezas(n, TXT[idioma].cond)}</span>`;
+      return `<span class="${k}">${escapar(v)}</span>`;
+    }).join(" ");
+  }
+  function htmlCursor() { return `<div class="cursor" aria-hidden="true"><span>${escapar(TXT[idioma].cursor)}</span></div>`; }
+  function htmlLista(lista, padre, rama) {
+    const conCursor = (i) => !ejec && cursor.padre === padre && cursor.rama === rama && cursor.idx === i ? htmlCursor() : "";
+    let html = `<div class="lista">`;
+    if (!lista.length && padre !== "raiz") html += `<div class="vacio" data-accion="vacio" data-padre="${padre}" data-rama="${rama}">${escapar(TXT[idioma].vacio)}</div>`;
+    lista.forEach((n, i) => { html += conCursor(i) + htmlNodo(n); });
+    html += conCursor(lista.length) + `</div>`;
+    return html;
+  }
+  function htmlNodo(n) {
+    const tx = TXT[idioma], cat = CATEGORIA[n.t], sel = seleccionBloque === n.id ? " sel" : "";
+    if (!esContenedor(n)) return `<div class="fila simple ${cat}${sel}" data-accion="fila" data-parte="simple" data-id="${n.id}" data-nodo="${n.id}">${piezas(n, tx[n.t])}</div>`;
+    let html = `<div class="nodo contenedor${sel}" data-nodo-cont="${n.id}">`;
+    html += `<div class="fila cabeza ${cat} ${n.t}" data-accion="fila" data-parte="cabeza" data-id="${n.id}" data-nodo="${n.id}">${piezas(n, tx[n.t])}</div>`;
+    html += `<div class="cuerpo">${htmlLista(n.cuerpo, n.id, "cuerpo")}</div>`;
+    if (n.t === "si") {
+      html += `<div class="fila sino ${cat}" data-accion="fila" data-parte="sino" data-id="${n.id}"><span class="kc">${escapar(tx.sino)}</span></div>`;
+      html += `<div class="cuerpo">${htmlLista(n.sino, n.id, "sino")}</div>`;
+    }
+    html += `<div class="fila pie ${cat}" data-accion="fila" data-parte="pie" data-id="${n.id}">${modo === "pseudo" ? escapar(tx.fin[n.t]) : ""}</div>`;
+    return html + `</div>`;
+  }
+  function pintarEdicion() {
+    if (!programa) return;
+    if (modo === "js") { $codigo.readOnly = !!ejec; pintarMarcas(); return; }
+    const scroll = $prog.scrollTop;
+    $prog.className = `prog ${modo === "pseudo" ? "v-pseudo" : "v-bloques"}`;
+    const tx = TXT[idioma];
+    $prog.innerHTML = `<div class="inicio" data-accion="inicio">${escapar(modo === "pseudo" ? tx.inicioPseudo : tx.inicio)}</div>` + htmlLista(programa.modelo.cuerpo, "raiz", "cuerpo");
+    $prog.scrollTop = scroll;
+    pintarSeleccion();
+    pintarMarcas();
+  }
+  function pintarSeleccion() {
+    const $s = $("seleccion");
+    if (modo === "js") { $s.hidden = true; return; }
+    $s.hidden = false;
+    if (!seleccionBloque || !buscar(programa.modelo, seleccionBloque) || ejec) {
+      $s.innerHTML = ejec ? `<span>Detén el programa para editarlo.</span>` : `<span>Toca un bloque para moverlo, duplicarlo o borrarlo.</span>`;
+      return;
+    }
+    $s.innerHTML = `<span>Bloque elegido:</span>
+      <button class="mini" type="button" data-sel="arriba" aria-label="Subir">↑</button>
+      <button class="mini" type="button" data-sel="abajo" aria-label="Bajar">↓</button>
+      <button class="mini" type="button" data-sel="duplicar">Duplicar</button>
+      <button class="mini" type="button" data-sel="borrar">Borrar</button>`;
+  }
+  $("seleccion").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-sel]"); if (!b || !seleccionBloque || ejec) return;
+    const a = b.dataset.sel;
+    if (a === "arriba") mover(seleccionBloque, -1);
+    else if (a === "abajo") mover(seleccionBloque, 1);
+    else if (a === "duplicar") duplicar(seleccionBloque);
+    else if (a === "borrar") borrar(seleccionBloque);
+  });
+  $prog.addEventListener("click", (ev) => {
+    const t = ev.target.closest("[data-accion]"); if (!t) return;
+    if (ejec) return;
+    const a = t.dataset.accion;
+    if (a === "slot") { seleccionBloque = t.dataset.id; abrirHoja(t.dataset.id, t.dataset.campo); return; }
+    cerrarHoja();
+    if (a === "inicio") { seleccionBloque = null; cursor = { padre: "raiz", rama: "cuerpo", idx: 0 }; }
+    else if (a === "vacio") { cursor = { padre: t.dataset.padre, rama: t.dataset.rama, idx: 0 }; seleccionBloque = t.dataset.padre; }
+    else if (a === "fila") {
+      const id = t.dataset.id, l = buscar(programa.modelo, id), parte = t.dataset.parte;
+      seleccionBloque = id;
+      if (parte === "simple" || parte === "pie") cursor = { padre: l.padre, rama: l.rama, idx: l.idx + 1 };
+      else if (parte === "cabeza") cursor = { padre: id, rama: "cuerpo", idx: 0 };
+      else if (parte === "sino") cursor = { padre: id, rama: "sino", idx: 0 };
+    }
+    pintarEdicion();
+  });
+
+  // Línea en curso y errores, en la vista que toque.
+  function marcarLinea(l) { lineaCorre = l; lineaErr = null; pintarMarcas(); }
+  // Un bucle de sensores manda miles de mensajes: se repinta una vez por cuadro.
+  let marcasSucias = false, eventosSucios = false;
+  function pintarMarcas() { marcasSucias = true; }
+  function pintarMarcasYa() {
+    marcasSucias = false;
+    if (!programa) return;
+    // Vista JavaScript paralela
+    const g = generar(programa.modelo);
+    const lc = mapaLineas ? lineaCorre : null, le = mapaLineas ? lineaErr : null;
+    $("js-pre").innerHTML = g.codigo.replace(/\n$/, "").split("\n").map((t, i) =>
+      `<div class="${i + 1 === lc ? "corre" : i + 1 === le ? "err" : ""}"><span class="ln">${i + 1}</span>${escapar(t)}</div>`).join("");
+    // Bloques
+    $prog.querySelectorAll(".corre, .err").forEach(x => x.classList.remove("corre", "err"));
+    if (modo !== "js" && mapaLineas) {
+      const marca = (l, cls) => {
+        const id = l && mapaLineas[l - 1]; const el = id && $prog.querySelector(`[data-nodo="${id}"]`);
+        if (!el) return;
+        el.classList.add(cls);
+        // Desplaza solo el panel del programa, nunca la página.
+        const pr = $prog.getBoundingClientRect(), er = el.getBoundingClientRect();
+        if (er.top < pr.top) $prog.scrollTop -= pr.top - er.top + 8;
+        else if (er.bottom > pr.bottom) $prog.scrollTop += er.bottom - pr.bottom + 8;
+      };
+      marca(lineaCorre, "corre"); marca(lineaErr, "err");
+    }
+    if (modo === "js") pintarBanda();
+  }
+
+  // ---------- Editor de texto ----------
+  let alturas = [];
+  function medirEditor() {
+    if (modo !== "js") return;
+    const lineas = $codigo.value.split("\n");
+    $espejo.style.width = `${$codigo.clientWidth}px`;
+    $espejo.innerHTML = lineas.map(l => `<div>${escapar(l) || " "}</div>`).join("");
+    alturas = [...$espejo.children].map(d => d.getBoundingClientRect().height);
+    $gutter.innerHTML = alturas.map((h, i) => `<div style="height:${h}px" class="${i + 1 === lineaCorre ? "corre" : i + 1 === lineaErr ? "err" : ""}">${i + 1}</div>`).join("");
+    pintarBanda();
+  }
+  function pad() { return parseFloat(getComputedStyle($codigo).paddingTop) || 10; }
+  function pintarBanda() {
+    if (modo !== "js") return;
+    const l = lineaErr || lineaCorre;
+    $banda.className = `banda ${l ? (lineaErr ? "err" : "corre") : ""}`;
+    if (l && alturas.length >= l) {
+      const top = alturas.slice(0, l - 1).reduce((a, b) => a + b, 0);
+      $banda.style.top = `${pad() + top - $codigo.scrollTop}px`;
+      $banda.style.height = `${alturas[l - 1]}px`;
+    }
+    [...$gutter.children].forEach((d, i) => d.className = i + 1 === lineaCorre ? "corre" : i + 1 === lineaErr ? "err" : "");
+    $gutter.style.transform = `translateY(${-$codigo.scrollTop}px)`;
+  }
+  function irALinea(l) {
+    $codigo.focus();
+    if (!l) return;
+    const lineas = $codigo.value.split("\n");
+    let pos = 0; for (let i = 0; i < l - 1 && i < lineas.length; i++) pos += lineas[i].length + 1;
+    $codigo.setSelectionRange(pos, pos + (lineas[l - 1] || "").length);
+  }
+  let tGuardar = 0;
+  $codigo.addEventListener("input", () => {
+    programa.texto = $codigo.value;
+    programa.fuente = "texto";
+    mapaLineas = null;
+    if (lineaErr) lineaErr = null;
+    medirEditor();
+    clearTimeout(tGuardar); tGuardar = setTimeout(guardarPrograma, 400);
+  });
+  $codigo.addEventListener("scroll", pintarBanda);
+  new ResizeObserver(() => medirEditor()).observe($codigo);
+  $codigo.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab") { ev.preventDefault(); insertar("  "); }
+    else if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); ejec ? detener() : ejecutar(); }
+    else if (ev.key === "Enter") {
+      ev.preventDefault();
+      const antes = $codigo.value.slice(0, $codigo.selectionStart);
+      const linea = antes.slice(antes.lastIndexOf("\n") + 1);
+      const sangria = linea.match(/^\s*/)[0] + (/\{\s*$/.test(linea) ? "  " : "");
+      insertar("\n" + sangria);
+    }
+  });
+  function insertar(texto, cursorDesde) {
+    if ($codigo.readOnly) return;
+    const a = $codigo.selectionStart, b = $codigo.selectionEnd, v = $codigo.value;
+    $codigo.value = v.slice(0, a) + texto + v.slice(b);
+    const p = a + (cursorDesde == null ? texto.length : cursorDesde);
+    $codigo.setSelectionRange(p, p);
+    $codigo.dispatchEvent(new Event("input"));
+  }
+  // Inserta un bloque en su propia línea; si tiene una línea interior vacía, el cursor queda ahí.
+  function insertarBloque(bloque) {
+    const a = $codigo.selectionStart, v = $codigo.value;
+    const ini = v.lastIndexOf("\n", a - 1) + 1;
+    const fin = v.indexOf("\n", a) === -1 ? v.length : v.indexOf("\n", a);
+    const linea = v.slice(ini, fin);
+    const sangria = linea.match(/^\s*/)[0] + (/\{\s*$/.test(linea) ? "  " : "");
+    const texto = bloque.split("\n").map((l, i) => (i ? sangria : "") + l).join("\n");
+    const hueco = texto.indexOf("\n" + sangria + "  \n");
+    const pos = hueco === -1 ? texto.length : hueco + 1 + sangria.length + 2;
+    if (!linea.trim()) { $codigo.setSelectionRange(ini, fin); insertar(sangria + texto, sangria.length + pos); }
+    else { $codigo.setSelectionRange(fin, fin); insertar("\n" + sangria + texto, 1 + sangria.length + pos); }
+  }
+  function insertarId(id) {
+    const a = $codigo.selectionStart, v = $codigo.value;
+    if (v[a - 1] === '"' && v[a] === '"') insertar(id); else insertar(`"${id}"`);
+  }
+
+  // ---------- Arranque ----------
+  window.__banco = { get mundo() { return mundo; }, get programa() { return programa; }, generar, parsear, RETOS }; // para depurar desde la consola
+  aplicarLetra();
+  elegirReto(retoIdx);
+  document.fonts && document.fonts.ready.then(() => { metasClave = ""; medirEditor(); });
+  requestAnimationFrame(bucle);
+})();
+</script>

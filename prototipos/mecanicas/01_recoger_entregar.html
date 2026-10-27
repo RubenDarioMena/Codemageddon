@@ -1,0 +1,1128 @@
+<title>Recoger y entregar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Plano de planta: el mundo arriba como un plano técnico, el código debajo como hoja de órdenes. En escritorio, dos columnas. */
+:root {
+  --bg: #E9ECE6;
+  --surface: #F6F7F3;
+  --code-bg: #FBFCF9;
+  --ink: #1C2630;
+  --muted: #5A6770;
+  --line: #CDD3CB;
+  --grid: #DDE2DA;
+  --building: #DCE1D9;
+  --building-top: #F3F5F0;
+  --edge: #8F9A93;
+  --accent: #2450B3;
+  --accent-ink: #FFFFFF;
+  --accent-soft: rgba(36, 80, 179, .12);
+  --cobre: #C05F27;
+  --silicio: #6A5AC4;
+  --ok: #2A7748;
+  --warn: #9A6A0C;
+  --bad: #B4302A;
+  --bad-soft: rgba(180, 48, 42, .14);
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161B; --surface: #182027; --code-bg: #141B21; --ink: #E2E7E2; --muted: #95A2A9;
+    --line: #2B3741; --grid: #202A33; --building: #26313A; --building-top: #33404A; --edge: #5C6B75;
+    --accent: #7FA3FF; --accent-ink: #0E1520; --accent-soft: rgba(127, 163, 255, .16);
+    --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161B; --surface: #182027; --code-bg: #141B21; --ink: #E2E7E2; --muted: #95A2A9;
+  --line: #2B3741; --grid: #202A33; --building: #26313A; --building-top: #33404A; --edge: #5C6B75;
+  --accent: #7FA3FF; --accent-ink: #0E1520; --accent-soft: rgba(127, 163, 255, .16);
+  --cobre: #E2894F; --silicio: #A496F2; --ok: #5FC28A; --warn: #E0AE4A; --bad: #F07A70; --bad-soft: rgba(240, 122, 112, .16);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  max-width: 1180px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 28px;
+  display: grid; gap: 14px;
+}
+.col { display: grid; gap: 12px; min-width: 0; align-content: start; }
+@media (min-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; gap: 22px; padding-block: 22px 32px; }
+}
+
+/* Cabecera */
+.eyebrow { font-family: var(--f-display); font-stretch: 112%; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 650; }
+h1 { margin: 2px 0 0; font-family: var(--f-display); font-stretch: 118%; font-weight: 780; font-size: clamp(22px, 5.6vw, 30px); line-height: 1.08; text-wrap: balance; }
+.retos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.retos::-webkit-scrollbar { display: none; }
+.reto-btn {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px 6px 6px; cursor: pointer; font-size: 13px; font-weight: 560;
+}
+.reto-btn .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-family: var(--f-code); font-size: 12px; }
+.reto-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.reto-btn[aria-pressed="true"] .n { background: var(--accent); color: var(--accent-ink); }
+.reto-btn.hecho .n { background: var(--ok); color: var(--surface); }
+
+/* Objetivo */
+.objetivo { display: grid; gap: 8px; }
+.objetivo p { margin: 0; max-width: 62ch; }
+.metas { display: flex; flex-wrap: wrap; gap: 6px; }
+.meta {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.meta .pt { width: 9px; height: 9px; border-radius: 50%; }
+.meta.cumplida { border-color: var(--ok); color: var(--ok); }
+.meta.rota { border-color: var(--bad); color: var(--bad); background: var(--bad-soft); }
+
+/* Mapa */
+.lienzo-wrap { position: relative; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+canvas { display: block; width: 100%; touch-action: manipulation; cursor: pointer; }
+.reloj {
+  position: absolute; top: 8px; right: 8px; font-family: var(--f-code); font-size: 12px; font-variant-numeric: tabular-nums;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px;
+}
+.reloj.tarde { color: var(--bad); border-color: var(--bad); }
+.banner {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; padding: 12px 14px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  display: grid; gap: 6px;
+}
+.banner.victoria { border-color: var(--ok); }
+.banner.fallo { border-color: var(--bad); }
+.banner h2 { margin: 0; font-family: var(--f-display); font-stretch: 115%; font-size: 17px; font-weight: 760; }
+.banner.victoria h2 { color: var(--ok); }
+.banner.fallo h2 { color: var(--bad); }
+.banner p { margin: 0; font-size: 13.5px; }
+.banner .stats { font-family: var(--f-code); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.banner .acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+
+.info {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap;
+  min-height: 40px; padding: 6px 10px; border-radius: 8px; background: var(--surface); border: 1px dashed var(--line);
+  font-size: 13px; color: var(--muted);
+}
+.info b { color: var(--ink); font-family: var(--f-code); font-weight: 600; }
+
+/* Botones */
+.controles { display: grid; grid-template-columns: 1.6fr 1fr .8fr 1fr; gap: 8px; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 12px; min-height: 44px;
+  cursor: pointer; font-weight: 620; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn:hover { border-color: var(--edge); }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.peligro { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.btn.chico { min-height: 32px; padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+/* Panel */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.tab {
+  border: 0; background: none; padding: 9px 12px; cursor: pointer; font-weight: 620; font-size: 14px; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.vista { display: grid; gap: 10px; min-width: 0; padding-top: 10px; }
+
+.atajos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.atajo {
+  flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); border-radius: 6px;
+  padding: 6px 9px; font-family: var(--f-code); font-size: 12.5px; cursor: pointer; min-height: 34px;
+}
+.atajo.mat { padding-left: 7px; display: inline-flex; align-items: center; gap: 5px; }
+.atajo.mat i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.editor {
+  --lh: 24px; --pad: 10px;
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--code-bg); overflow: hidden;
+  height: clamp(15rem, 42vh, 28rem);
+  font-family: var(--f-code); font-size: 16px;
+}
+@media (min-width: 900px) { .editor { font-size: 14px; --lh: 22px; height: clamp(20rem, 52vh, 34rem); } }
+.gutter { overflow: hidden; border-right: 1px solid var(--line); color: var(--muted); user-select: none; min-width: 2.6em; }
+.gutter-in { padding: var(--pad) 8px var(--pad) 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.gutter-in div { height: var(--lh); line-height: var(--lh); font-size: .82em; }
+.gutter-in div.corre { color: var(--accent); font-weight: 600; }
+.gutter-in div.err { color: var(--bad); font-weight: 600; }
+.area { position: relative; min-width: 0; }
+.banda { position: absolute; left: 0; right: 0; height: var(--lh); pointer-events: none; display: none; }
+.banda.corre { display: block; background: var(--accent-soft); }
+.banda.err { display: block; background: var(--bad-soft); }
+textarea#codigo {
+  position: relative; z-index: 1; display: block; width: 100%; height: 100%; margin: 0; border: 0; outline: none; resize: none;
+  background: transparent; color: var(--ink); font: inherit; line-height: var(--lh); padding: var(--pad);
+  white-space: pre; overflow: auto; tab-size: 2; caret-color: var(--accent);
+}
+.consola {
+  font-family: var(--f-code); font-size: 12.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  max-height: 9.5rem; min-height: 4.5rem; overflow: auto; padding: 6px 8px; display: grid; align-content: start; gap: 2px;
+}
+.consola .c { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); gap: 6px; overflow-wrap: anywhere; }
+.consola .c .l { color: var(--muted); font-variant-numeric: tabular-nums; }
+.consola .c.ok b { color: var(--ok); }
+.consola .c.warn b { color: var(--warn); }
+.consola .c.bad, .consola .c.bad b { color: var(--bad); }
+.consola .c.log { color: var(--muted); }
+.consola .vacia { color: var(--muted); }
+.fila-bajo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.link { border: 0; background: none; padding: 4px 0; color: var(--accent); cursor: pointer; font-size: 13px; text-decoration: underline; text-underline-offset: 2px; }
+
+.tabla-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); max-height: 22rem; }
+table { border-collapse: collapse; width: 100%; font-family: var(--f-code); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 9px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--surface); font-family: var(--f-body); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td.ok { color: var(--ok); } td.warn { color: var(--warn); } td.bad { color: var(--bad); }
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 8px; }
+.dato { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--surface); }
+.dato span { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dato b { font-family: var(--f-code); font-size: 18px; font-variant-numeric: tabular-nums; }
+details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+textarea#json { width: 100%; height: 10rem; font-family: var(--f-code); font-size: 11.5px; border: 1px solid var(--line); border-radius: 8px; background: var(--code-bg); color: var(--ink); padding: 8px; margin-top: 6px; }
+
+.ayuda { display: grid; gap: 12px; max-width: 65ch; }
+.ayuda h3 { margin: 6px 0 0; font-family: var(--f-display); font-stretch: 112%; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.firma { display: grid; gap: 3px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--surface); border-radius: 0 8px 8px 0; }
+.firma code { font-family: var(--f-code); font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.firma p { margin: 0; font-size: 13.5px; }
+.ayuda ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: 13.5px; }
+.ayuda pre { margin: 0; overflow-x: auto; font-family: var(--f-code); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.r { font-family: var(--f-code); font-size: .92em; padding: 0 3px; border-radius: 3px; background: var(--bg); }
+.leyenda { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+.leyenda span { display: inline-flex; align-items: center; gap: 5px; }
+.leyenda i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <div class="col">
+    <header class="col" style="gap:8px">
+      <div class="eyebrow">Codemageddon · banco de mecánicas 01</div>
+      <h1 id="titulo">Primer viaje</h1>
+      <nav class="retos" id="retos" aria-label="Retos"></nav>
+    </header>
+
+    <section class="objetivo" aria-label="Objetivo">
+      <p id="objetivo-txt"></p>
+      <div class="metas" id="metas"></div>
+    </section>
+
+    <div class="lienzo-wrap">
+      <canvas id="lienzo" aria-label="Mapa de la planta"></canvas>
+      <div class="reloj" id="reloj">t 0.0 s</div>
+      <div class="banner" id="banner" hidden></div>
+    </div>
+
+    <div class="info" id="info"><span>Toca un edificio para ver qué guarda y copiar su ID.</span></div>
+
+    <div class="controles">
+      <button class="btn primario" id="b-ejecutar" type="button">▶ Ejecutar</button>
+      <button class="btn" id="b-pausa" type="button" disabled>Pausa</button>
+      <button class="btn" id="b-vel" type="button" aria-label="Velocidad">1×</button>
+      <button class="btn" id="b-reiniciar" type="button">Reiniciar</button>
+    </div>
+    <div class="leyenda">
+      <span><i style="background:var(--cobre)"></i>cobre</span>
+      <span><i style="background:var(--silicio)"></i>silicio</span>
+      <span><i style="background:var(--ink)"></i>robot R1 (lleva 1 unidad)</span>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-codigo" aria-selected="true" aria-controls="v-codigo" type="button">Código</button>
+      <button class="tab" role="tab" id="t-registro" aria-selected="false" aria-controls="v-registro" type="button">Registro</button>
+      <button class="tab" role="tab" id="t-ayuda" aria-selected="false" aria-controls="v-ayuda" type="button">Órdenes</button>
+    </div>
+
+    <section class="vista" id="v-codigo" role="tabpanel" aria-labelledby="t-codigo">
+      <div class="atajos" id="atajos" aria-label="Insertar código"></div>
+      <div class="editor" id="editor">
+        <div class="gutter"><div class="gutter-in" id="gutter"></div></div>
+        <div class="area">
+          <div class="banda" id="banda"></div>
+          <textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Programa del robot R1"></textarea>
+        </div>
+      </div>
+      <div class="consola" id="consola" aria-live="polite"><div class="vacia">Aquí verás cada orden y lo que devuelve.</div></div>
+      <div class="fila-bajo">
+        <span id="intento-txt">Intento 1</span>
+        <button class="link" id="b-restaurar" type="button">Restaurar código inicial</button>
+      </div>
+    </section>
+
+    <section class="vista" id="v-registro" role="tabpanel" aria-labelledby="t-registro" hidden>
+      <div class="resumen" id="resumen"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>t (s)</th><th>Línea</th><th>Orden</th><th>Resultado</th></tr></thead>
+          <tbody id="eventos"></tbody>
+        </table>
+      </div>
+      <div class="fila-bajo">
+        <span>La tabla es el registro del último intento, como la tabla <span class="r">eventos</span> del juego.</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <button class="btn chico" id="b-copiar" type="button">Copiar telemetría (JSON)</button>
+        <button class="btn chico" id="b-borrar" type="button">Borrar telemetría</button>
+        <span id="copiado" class="fila-bajo" hidden>Copiada.</span>
+      </div>
+      <details>
+        <summary>Ver JSON</summary>
+        <textarea id="json" readonly></textarea>
+      </details>
+    </section>
+
+    <section class="vista ayuda" id="v-ayuda" role="tabpanel" aria-labelledby="t-ayuda" hidden>
+      <div class="firma">
+        <code>await yo.recoger(origen, material)</code>
+        <p>R1 camina hasta la bodega y toma 1 unidad de ese material.</p>
+        <p>Devuelve <span class="r">"ok"</span>, <span class="r">"viaje_vacio"</span> si no quedaba ese material, o <span class="r">"manos_llenas"</span> si ya llevaba algo.</p>
+      </div>
+      <div class="firma">
+        <code>await yo.entregar(destino)</code>
+        <p>R1 camina hasta el destino y deja lo que lleva.</p>
+        <p>Devuelve <span class="r">"ok"</span>, <span class="r">"rechazado"</span> si la máquina no acepta ese material (R1 lo conserva), <span class="r">"derrame"</span> si la entrada estaba llena (el material cae al suelo y se pierde) o <span class="r">"manos_vacias"</span>.</p>
+      </div>
+      <div class="firma">
+        <code>await yo.esperar(segundos)</code>
+        <p>R1 se queda quieto ese tiempo de juego. Devuelve <span class="r">"ok"</span>.</p>
+      </div>
+      <div class="firma">
+        <code>log(valor, …)</code>
+        <p>Escribe en la consola. Útil para ver qué devolvió una orden.</p>
+      </div>
+      <h3>Reglas del mundo</h3>
+      <ul>
+        <li>R1 camina 4 casillas por segundo, en L (primero en horizontal). Recoger o entregar tarda 0,5 s.</li>
+        <li>Las máquinas procesan una pieza a la vez. Las piezas que llegan esperan en la entrada, que tiene huecos limitados.</li>
+        <li>Las órdenes duran tiempo de juego: con el juego en pausa, el programa espera.</li>
+        <li>Cada ejecución empieza con el mundo recién puesto, para que los intentos se puedan comparar.</li>
+        <li>Si olvidas un <span class="r">await</span>, R1 recibe dos órdenes a la vez y el programa se detiene. Un bucle sin <span class="r">await</span> se detiene a los 2,5 s.</li>
+      </ul>
+      <h3>Usar lo que devuelve una orden</h3>
+<pre>const r = await yo.recoger("ENT-1", "cobre");
+if (r === "viaje_vacio") {
+  await yo.recoger("ENT-2", "cobre");
+}</pre>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Constantes del mundo ----------
+  const COLS = 9, ROWS = 7;
+  const VEL = 4;        // casillas por segundo
+  const OP = 0.5;       // segundos por recoger/entregar
+  const DT = 0.05;      // paso fijo de simulación (tiempo de juego)
+  const VIGIA_MS = 2500;
+  const MATERIALES = ["cobre", "silicio"];
+  const CLAVE = "cmg-banco01";
+
+  const RETOS = [
+    {
+      titulo: "Primer viaje",
+      objetivo: "Lleva 3 de cobre de la bodega ENT-1 a la fundidora FUN.",
+      pista: "Cada par de líneas es un viaje. Repítelo o envuélvelo en un for.",
+      robot: { x: 4, y: 5 },
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 3 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 3, puerta: { x: 6, y: 3 }, acepta: "cobre", cap: 3, tProceso: 3 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 3 }],
+      codigo: `// Lleva el cobre de ENT-1 a la fundidora FUN.
+await yo.recoger("ENT-1", "cobre");
+await yo.entregar("FUN");
+`,
+    },
+    {
+      titulo: "Dos materiales",
+      objetivo: "ENT-1 guarda cobre y silicio. La fundidora FUN necesita 3 de cobre y la ensambladora ENS, 3 de silicio.",
+      pista: "El segundo argumento de recoger elige el material. ENS solo acepta silicio.",
+      robot: { x: 4, y: 3 },
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 3, silicio: 3 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 1, puerta: { x: 6, y: 1 }, acepta: "cobre", cap: 3, tProceso: 3 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 7, y: 5, puerta: { x: 6, y: 5 }, acepta: "silicio", cap: 3, tProceso: 3 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 3 }, { id: "ENS", mat: "silicio", n: 3 }],
+      codigo: `// FUN funde cobre. ENS ensambla con silicio.
+for (let i = 0; i < 3; i++) {
+  await yo.recoger("ENT-1", "cobre");
+  await yo.entregar("FUN");
+}
+`,
+    },
+    {
+      titulo: "Sin derrames",
+      objetivo: "Lleva 4 de cobre a FUN y 4 de silicio a ENS sin derramar nada. Cada máquina tarda 9 s por pieza y su entrada tiene un solo hueco.",
+      pista: "Mientras una máquina trabaja, R1 puede hacer otro viaje. También existe yo.esperar(segundos).",
+      robot: { x: 4, y: 3 },
+      maxDerrames: 0,
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 1, y: 3, puerta: { x: 2, y: 3 }, stock: { cobre: 4, silicio: 4 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 1, puerta: { x: 6, y: 1 }, acepta: "cobre", cap: 1, tProceso: 9 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 7, y: 5, puerta: { x: 6, y: 5 }, acepta: "silicio", cap: 1, tProceso: 9 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 4 }, { id: "ENS", mat: "silicio", n: 4 }],
+      codigo: `// Si entregas con la entrada llena, el material cae al suelo.
+for (let i = 0; i < 4; i++) {
+  await yo.recoger("ENT-1", "cobre");
+  await yo.entregar("FUN");
+}
+for (let i = 0; i < 4; i++) {
+  await yo.recoger("ENT-1", "silicio");
+  await yo.entregar("ENS");
+}
+`,
+    },
+    {
+      titulo: "Contra reloj",
+      objetivo: "Lleva 4 de cobre a FUN y 2 de silicio a ENS en 18 s de juego o menos. ENT-1 está cerca pero tiene poco cobre; ENT-2 está lejos y tiene mucho.",
+      pista: "R1 sale desde donde terminó la orden anterior, así que el orden de los viajes importa. Si no queda material, recoger devuelve \"viaje_vacio\".",
+      robot: { x: 4, y: 4 },
+      tiempoMax: 18,
+      entidades: [
+        { id: "ENT-1", tipo: "bodega", nombre: "Bodega", x: 5, y: 1, puerta: { x: 5, y: 2 }, stock: { cobre: 2, silicio: 2 } },
+        { id: "ENT-2", tipo: "bodega", nombre: "Bodega", x: 1, y: 5, puerta: { x: 2, y: 5 }, stock: { cobre: 6 } },
+        { id: "FUN", tipo: "maquina", nombre: "Fundidora", x: 7, y: 3, puerta: { x: 6, y: 3 }, acepta: "cobre", cap: 6, tProceso: 2 },
+        { id: "ENS", tipo: "maquina", nombre: "Ensambladora", x: 2, y: 1, puerta: { x: 2, y: 2 }, acepta: "silicio", cap: 4, tProceso: 2 },
+      ],
+      metas: [{ id: "FUN", mat: "cobre", n: 4 }, { id: "ENS", mat: "silicio", n: 2 }],
+      codigo: `// Funciona, pero tarda demasiado.
+for (let i = 0; i < 4; i++) {
+  await yo.recoger("ENT-2", "cobre");
+  await yo.entregar("FUN");
+}
+for (let i = 0; i < 2; i++) {
+  await yo.recoger("ENT-1", "silicio");
+  await yo.entregar("ENS");
+}
+`,
+    },
+  ];
+
+  // ---------- Almacenamiento local (comodidad del jugador) ----------
+  const guardado = {
+    leer(k, def) { try { const v = localStorage.getItem(`${CLAVE}:${k}`); return v == null ? def : JSON.parse(v); } catch { return def; } },
+    escribir(k, v) { try { localStorage.setItem(`${CLAVE}:${k}`, JSON.stringify(v)); } catch { /* sin almacenamiento */ } },
+  };
+
+  // ---------- Runtime del jugador (Web Worker) ----------
+  const WORKER_SRC = `
+const AF = Object.getPrototypeOf(async function () {}).constructor;
+let seq = 0;
+const pend = new Map();
+let OFF = null;
+const VERBOS = ["recoger", "entregar", "esperar"];
+function lineaDe(e) {
+  const s = String((e && e.stack) || "");
+  const m = s.match(/<anonymous>:(\\d+):\\d+/) || s.match(/> Function:(\\d+):\\d+/) || s.match(/(?:eval code|anonymous)[^\\n]*?:(\\d+):\\d+/);
+  return m ? +m[1] : null;
+}
+function llamar(linea, verbo, args) {
+  const id = ++seq;
+  postMessage({ type: "call", id, linea, verbo, args });
+  return new Promise((resolve, reject) => pend.set(id, { resolve, reject, linea }));
+}
+function __yo(linea) {
+  return new Proxy({}, {
+    get(_, p) {
+      if (VERBOS.includes(p)) return (...a) => llamar(linea, p, a);
+      if (typeof p === "symbol" || p === "then") return undefined;
+      const e = new Error("yo." + String(p) + " no existe. Las órdenes son yo.recoger, yo.entregar y yo.esperar.");
+      e.__linea = linea;
+      throw e;
+    },
+  });
+}
+function fmt(v) { if (typeof v === "string") return v; try { return JSON.stringify(v); } catch (_) { return String(v); } }
+function __log(linea) { return (...a) => postMessage({ type: "log", linea, texto: a.map(fmt).join(" ") }); }
+onmessage = async (ev) => {
+  const m = ev.data;
+  if (m.type === "res") {
+    const p = pend.get(m.id);
+    if (!p) return;
+    pend.delete(m.id);
+    if (m.error) { const e = new Error(m.error); e.__linea = p.linea; p.reject(e); }
+    else p.resolve(m.valor);
+    return;
+  }
+  if (m.type !== "run") return;
+  if (OFF === null) {
+    try { await new AF("\\nthrow new Error('x')")(); } catch (e) { const n = lineaDe(e); OFF = n == null ? NaN : n - 2; }
+  }
+  let fn;
+  try { fn = new AF("__yo", "__log", m.codigo); }
+  catch (e) { postMessage({ type: "error", mensaje: "Error de sintaxis: " + e.message, linea: null }); return; }
+  try { await fn(__yo, __log); postMessage({ type: "done" }); }
+  catch (e) {
+    let linea = e && e.__linea;
+    if (linea == null) { const n = lineaDe(e); if (n != null && !isNaN(OFF)) linea = n - OFF; }
+    const msg = String((e && e.message) || e).replace(/__yo\\(\\d+\\)\\./g, "yo.").replace(/__log\\(\\d+\\)/g, "log");
+    postMessage({ type: "error", mensaje: msg, linea: linea == null ? null : linea });
+  }
+};
+`;
+  const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SRC], { type: "text/javascript" }));
+
+  // Cada `yo.` y `log(` lleva su número de línea, para iluminarla mientras corre.
+  function instrumentar(src) {
+    return src.split("\n").map((l, i) => l
+      .replace(/(?<![\w.$])yo\s*\./g, `__yo(${i + 1}).`)
+      .replace(/(?<![\w.$])log\s*\(/g, `__log(${i + 1})(`)
+    ).join("\n");
+  }
+
+  // ---------- Estado ----------
+  let retoIdx = Math.min(RETOS.length - 1, Math.max(0, guardado.leer("reto", 0)));
+  let hechos = guardado.leer("hechos", []);
+  let telemetria = guardado.leer("telemetria", []);
+  let mundo = null;      // estado de la simulación
+  let ejec = null;       // programa en curso
+  let llamada = null;    // orden pendiente de R1
+  // Entre una orden y la siguiente el reloj se congela: el código del jugador no gasta tiempo de juego.
+  let esperandoPrograma = false;
+  let pausa = false;
+  let velocidad = 1;
+  let intento = 0;
+  let seleccion = null;
+  let lineaCorre = null, lineaErr = null;
+
+  function crearMundo(reto) {
+    const entidades = reto.entidades.map(e => {
+      const c = JSON.parse(JSON.stringify(e));
+      if (c.tipo === "maquina") Object.assign(c, { entrada: 0, procesando: false, progreso: 0, recibido: {}, producido: 0, derrames: 0, suelo: [] });
+      if (c.tipo === "bodega") c.stock = c.stock || {};
+      return c;
+    });
+    return {
+      t: 0, activo: false, fin: null, derrames: 0,
+      entidades, porId: Object.fromEntries(entidades.map(e => [e.id, e])),
+      robot: { x: reto.robot.x, y: reto.robot.y, carga: null, tarea: null },
+      eventos: [], verbos: {}, resultados: {},
+    };
+  }
+
+  // ---------- Simulación ----------
+  function ruta(dest) {
+    const r = mundo.robot, wps = [];
+    if (Math.abs(r.x - dest.x) > 1e-6) wps.push({ x: dest.x, y: r.y });
+    if (Math.abs(r.y - dest.y) > 1e-6) wps.push({ x: dest.x, y: dest.y });
+    return wps;
+  }
+
+  function paso(dt) {
+    mundo.t += dt;
+    for (const e of mundo.entidades) {
+      if (e.tipo !== "maquina") continue;
+      if (e.procesando) {
+        e.progreso += dt;
+        if (e.progreso >= e.tProceso - 1e-9) { e.procesando = false; e.producido++; }
+      }
+      if (!e.procesando && e.entrada > 0) { e.entrada--; e.procesando = true; e.progreso = 0; }
+    }
+    const r = mundo.robot, tarea = r.tarea;
+    if (tarea) {
+      let mov = VEL * dt;
+      while (mov > 0 && tarea.wps.length) {
+        const w = tarea.wps[0], dx = w.x - r.x, dy = w.y - r.y, d = Math.hypot(dx, dy);
+        if (d <= mov) { r.x = w.x; r.y = w.y; mov -= d; tarea.wps.shift(); }
+        else { r.x += dx / d * mov; r.y += dy / d * mov; mov = 0; }
+      }
+      if (!tarea.wps.length) {
+        tarea.op -= dt;
+        if (tarea.op <= 1e-9) { r.tarea = null; terminarOrden(tarea.fin()); }
+      }
+    }
+    evaluar();
+  }
+
+  function iniciarOrden(verbo, args) {
+    const r = mundo.robot;
+    if (verbo === "recoger") {
+      const [origen, mat] = args, e = mundo.porId[origen];
+      if (r.carga) return terminarOrden("manos_llenas");
+      r.tarea = { wps: ruta(e.puerta), op: OP, fin: () => {
+        if ((e.stock[mat] || 0) > 0) { e.stock[mat]--; r.carga = mat; return "ok"; }
+        return "viaje_vacio";
+      } };
+    } else if (verbo === "entregar") {
+      const e = mundo.porId[args[0]];
+      if (!r.carga) return terminarOrden("manos_vacias");
+      r.tarea = { wps: ruta(e.puerta), op: OP, fin: () => {
+        const mat = r.carga;
+        if (e.tipo === "bodega") { e.stock[mat] = (e.stock[mat] || 0) + 1; r.carga = null; return "ok"; }
+        if (e.acepta !== mat) return "rechazado";
+        if (e.entrada >= e.cap) { e.derrames++; e.suelo.push(mat); mundo.derrames++; r.carga = null; return "derrame"; }
+        e.entrada++; e.recibido[mat] = (e.recibido[mat] || 0) + 1; r.carga = null; return "ok";
+      } };
+    } else if (verbo === "esperar") {
+      r.tarea = { wps: [], op: args[0], fin: () => "ok" };
+    }
+    if (r.tarea) r.tarea.op0 = r.tarea.op;
+  }
+
+  function validar(verbo, args) {
+    const ids = mundo.entidades.map(e => `"${e.id}"`).join(", ");
+    if (verbo === "recoger") {
+      const [origen, mat] = args;
+      if (typeof origen !== "string") return `recoger necesita el ID de una bodega entre comillas, por ejemplo yo.recoger("ENT-1", "cobre").`;
+      const e = mundo.porId[origen];
+      if (!e) return `No hay ningún edificio "${origen}". En este mapa hay ${ids}.`;
+      if (e.tipo !== "bodega") return `"${origen}" es una máquina: solo se recoge en bodegas.`;
+      if (mat === undefined) return `Falta el segundo argumento: ¿qué material? Por ejemplo yo.recoger("${origen}", "cobre").`;
+      if (!MATERIALES.includes(mat)) return `No existe el material ${JSON.stringify(mat)}. Hay ${MATERIALES.map(m => `"${m}"`).join(" y ")}.`;
+    } else if (verbo === "entregar") {
+      const [destino] = args;
+      if (typeof destino !== "string") return `entregar necesita el ID del destino entre comillas, por ejemplo yo.entregar("FUN").`;
+      if (!mundo.porId[destino]) return `No hay ningún edificio "${destino}". En este mapa hay ${ids}.`;
+    } else if (verbo === "esperar") {
+      const [s] = args;
+      if (typeof s !== "number" || !(s > 0) || s > 60) return `esperar necesita un número de segundos entre 0 y 60, por ejemplo yo.esperar(2).`;
+    }
+    return null;
+  }
+
+  function metaActual(m) { const e = mundo.porId[m.id]; return Math.min(m.n, (e.recibido && e.recibido[m.mat]) || 0); }
+  function faltantes() {
+    return RETOS[retoIdx].metas.filter(m => metaActual(m) < m.n).map(m => `${m.id} ${m.n - metaActual(m)} de ${m.mat}`);
+  }
+
+  function evaluar() {
+    if (!mundo.activo || mundo.fin) return;
+    const reto = RETOS[retoIdx];
+    if (reto.maxDerrames != null && mundo.derrames > reto.maxDerrames) {
+      const e = mundo.entidades.find(x => x.derrames > 0);
+      return terminar("fallo", "derrame", `Se derramó ${e.suelo[e.suelo.length - 1]} en ${e.id}: su entrada estaba llena. Este reto no admite derrames.`);
+    }
+    if (reto.tiempoMax != null && mundo.t > reto.tiempoMax + 1e-9) {
+      return terminar("fallo", "tiempo", `Se acabaron los ${reto.tiempoMax} s. Faltó: ${faltantes().join(", ")}.`);
+    }
+    if (!faltantes().length) return terminar("victoria", null, null);
+    if (ejec && ejec.acabado && !mundo.robot.tarea && !llamada) {
+      return terminar("fallo", "incompleto", `El programa terminó y falta: ${faltantes().join(", ")}.`);
+    }
+  }
+
+  // ---------- Ciclo del programa ----------
+  function ejecutar() {
+    cerrarPrograma();
+    mundo = crearMundo(RETOS[retoIdx]);
+    mundo.activo = true;
+    intento++;
+    lineaCorre = lineaErr = null;
+    limpiarConsola();
+    ocultarBanner();
+    const codigo = $codigo.value;
+    const w = new Worker(WORKER_URL);
+    ejec = { worker: w, acabado: false, ultimoMsg: performance.now(), codigo, inicio: new Date().toISOString() };
+    w.onmessage = (ev) => alMensaje(w, ev.data);
+    w.onerror = (ev) => { ev.preventDefault(); errorPrograma(ev.message || "Error en el programa.", null); };
+    w.postMessage({ type: "run", codigo: instrumentar(codigo) });
+    pausa = false;
+    esperandoPrograma = true;
+    pintarControles();
+  }
+
+  function alMensaje(w, m) {
+    if (!ejec || ejec.worker !== w) return;
+    ejec.ultimoMsg = performance.now();
+    if (m.type !== "log") esperandoPrograma = false;
+    if (m.type === "call") {
+      const texto = `${m.verbo}(${m.args.map(a => a === undefined ? "" : JSON.stringify(a)).join(", ")})`;
+      if (llamada) return errorPrograma(`Falta await en la línea ${llamada.linea}: R1 seguía con ${llamada.texto} cuando llegó la orden de la línea ${m.linea}.`, llamada.linea);
+      lineaCorre = m.linea; lineaErr = null; pintarBanda();
+      mundo.verbos[m.verbo] = (mundo.verbos[m.verbo] || 0) + 1;
+      const err = validar(m.verbo, m.args);
+      if (err) { esperandoPrograma = true; w.postMessage({ type: "res", id: m.id, error: err }); return; }
+      llamada = { id: m.id, linea: m.linea, texto };
+      iniciarOrden(m.verbo, m.args);
+    } else if (m.type === "log") {
+      consola("log", m.linea, m.texto);
+    } else if (m.type === "done") {
+      ejec.acabado = true;
+      evaluar();
+    } else if (m.type === "error") {
+      errorPrograma(m.mensaje, m.linea);
+    }
+  }
+
+  function terminarOrden(res) {
+    if (!llamada) return;
+    const l = llamada;
+    llamada = null;
+    mundo.resultados[res] = (mundo.resultados[res] || 0) + 1;
+    mundo.eventos.push({ t: +mundo.t.toFixed(2), linea: l.linea, orden: l.texto, resultado: res });
+    consola(claseRes(res), l.linea, `${l.texto} → <b>"${res}"</b>`);
+    pintarEventos();
+    if (ejec) { ejec.ultimoMsg = performance.now(); esperandoPrograma = true; ejec.worker.postMessage({ type: "res", id: l.id, valor: res }); }
+  }
+
+  function errorPrograma(mensaje, linea) {
+    if (!ejec) return;
+    lineaErr = linea; lineaCorre = null; pintarBanda();
+    consola("bad", linea, escapar(mensaje));
+    terminar("error", "error", mensaje, linea);
+  }
+
+  function cerrarPrograma() {
+    if (ejec) ejec.worker.terminate();
+    ejec = null;
+    esperandoPrograma = false;
+    llamada = null;
+    if (mundo) { mundo.robot.tarea = null; mundo.activo = false; }
+  }
+
+  function terminar(resultado, motivo, texto, linea) {
+    if (!mundo || mundo.fin) return;
+    const codigo = ejec ? ejec.codigo : $codigo.value;
+    const inicio = ejec ? ejec.inicio : new Date().toISOString();
+    mundo.fin = resultado;
+    cerrarPrograma();
+    if (resultado !== "error") { lineaCorre = null; pintarBanda(); }
+    const reto = RETOS[retoIdx];
+    const lineas = codigo.split("\n").filter(l => l.trim() && !l.trim().startsWith("//")).length;
+    telemetria.push({
+      sandbox: "01_recoger_entregar", reto: retoIdx + 1, intento, inicio,
+      resultado, motivo, mensaje: texto, linea: linea ?? null,
+      tiempoJuego: +mundo.t.toFixed(2), lineas, derrames: mundo.derrames,
+      verbos: mundo.verbos, resultados: mundo.resultados, codigo,
+    });
+    guardado.escribir("telemetria", telemetria);
+    if (resultado === "victoria") {
+      if (!hechos.includes(retoIdx)) { hechos.push(retoIdx); guardado.escribir("hechos", hechos); }
+      const sig = retoIdx + 1 < RETOS.length;
+      mostrarBanner("victoria", "Reto cumplido",
+        reto.maxDerrames === 0 ? "Sin derrames." : reto.tiempoMax ? `Dentro del tiempo (${reto.tiempoMax} s).` : "Todo entregado.",
+        `${mundo.t.toFixed(1)} s de juego · ${lineas} líneas · intento ${intento}`,
+        sig ? [["Siguiente reto", "primario", () => elegirReto(retoIdx + 1)], ["Otra vez", "", ocultarBanner]] : [["Otra vez", "primario", ocultarBanner]]);
+      pintarRetos();
+    } else if (resultado === "fallo") {
+      mostrarBanner("fallo", "Aún no", texto, `Pista: ${reto.pista}`, [["Editar código", "primario", () => { ocultarBanner(); $codigo.focus(); }]]);
+    } else if (resultado === "error") {
+      mostrarBanner("fallo", linea ? `Error en la línea ${linea}` : "Error en el programa", escapar(texto), null, [["Editar código", "primario", () => { ocultarBanner(); irALinea(linea); }]]);
+    }
+    pintarControles();
+    pintarResumen();
+  }
+
+  function detener() {
+    if (!ejec) return;
+    consola("warn", null, "Programa detenido.");
+    terminar("detenido", "detenido", null);
+  }
+
+  // ---------- Bucle de juego ----------
+  let ultimo = performance.now(), acum = 0;
+  function bucle(now) {
+    const real = Math.min(0.25, (now - ultimo) / 1000);
+    ultimo = now;
+    if (mundo.activo && !pausa && !esperandoPrograma) {
+      acum += real * velocidad;
+      while (acum >= DT && mundo.activo && !esperandoPrograma) { paso(DT); acum -= DT; }
+    } else acum = 0;
+    if (ejec && !ejec.acabado && !llamada && now - ejec.ultimoMsg > VIGIA_MS) {
+      errorPrograma(`Un bucle giró ${VIGIA_MS / 1000} s sin ningún await, así que R1 nunca recibió órdenes. Cada vuelta necesita al menos un await yo.….`, lineaCorre);
+    }
+    dibujar();
+    pintarHud();
+    requestAnimationFrame(bucle);
+  }
+
+  // ---------- Dibujo ----------
+  const $lienzo = document.getElementById("lienzo");
+  const ctx = $lienzo.getContext("2d");
+  let colores = {};
+  function leerColores() {
+    const s = getComputedStyle(document.documentElement);
+    for (const k of ["bg", "surface", "ink", "muted", "line", "grid", "building", "building-top", "edge", "accent", "accent-soft", "cobre", "silicio", "ok", "bad", "bad-soft"])
+      colores[k] = s.getPropertyValue(`--${k}`).trim();
+  }
+  leerColores();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", leerColores);
+  new MutationObserver(leerColores).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+  function dibujar() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = $lienzo.clientWidth, T = W / COLS, H = T * ROWS;
+    if ($lienzo.width !== Math.round(W * dpr) || $lienzo.height !== Math.round(H * dpr)) {
+      $lienzo.width = Math.round(W * dpr); $lienzo.height = Math.round(H * dpr); $lienzo.style.height = `${H}px`;
+    }
+    const c = colores;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = c.surface; ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 1; i < COLS; i++) { ctx.moveTo(Math.round(i * T) + .5, 0); ctx.lineTo(Math.round(i * T) + .5, H); }
+    for (let j = 1; j < ROWS; j++) { ctx.moveTo(0, Math.round(j * T) + .5); ctx.lineTo(W, Math.round(j * T) + .5); }
+    ctx.stroke();
+
+    // Puertas: donde se para R1
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = c.edge; ctx.lineWidth = 1;
+    for (const e of mundo.entidades) { rr(e.puerta.x * T + T * .3, e.puerta.y * T + T * .3, T * .4, T * .4, 3); ctx.stroke(); }
+    ctx.setLineDash([]);
+
+    for (const e of mundo.entidades) dibujarEntidad(e, T);
+
+    // Material derramado junto a la puerta
+    for (const e of mundo.entidades) {
+      if (!e.suelo || !e.suelo.length) continue;
+      const cx = (e.puerta.x + .5) * T, cy = (e.puerta.y + .5) * T + T * .32;
+      ctx.fillStyle = c["bad-soft"]; ctx.beginPath(); ctx.ellipse(cx, cy, T * .34, T * .14, 0, 0, Math.PI * 2); ctx.fill();
+      e.suelo.slice(0, 6).forEach((m, i) => {
+        ctx.fillStyle = c[m]; ctx.beginPath(); ctx.arc(cx - T * .22 + (i % 3) * T * .22, cy - T * .03 + Math.floor(i / 3) * T * .08, T * .06, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = c.bad; ctx.font = `700 ${Math.max(T * .17, 9)}px Archivo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillText(`derrame ×${e.suelo.length}`, cx, cy + T * .1);
+    }
+
+    // Ruta pendiente
+    const r = mundo.robot;
+    if (r.tarea && r.tarea.wps.length) {
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo((r.x + .5) * T, (r.y + .5) * T);
+      for (const w of r.tarea.wps) ctx.lineTo((w.x + .5) * T, (w.y + .5) * T);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Robot
+    const px = (r.x + .5) * T, py = (r.y + .5) * T;
+    if (r.tarea && !r.tarea.wps.length) {
+      ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, T * .38, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - Math.max(0, r.tarea.op) / (r.tarea.op0 || OP)), false); ctx.stroke();
+    }
+    ctx.fillStyle = c.ink; ctx.beginPath(); ctx.arc(px, py, T * .28, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = c.surface; ctx.font = `700 ${Math.max(T * .2, 10)}px Archivo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("R1", px, py + 1);
+    if (r.carga) {
+      ctx.fillStyle = c[r.carga]; ctx.strokeStyle = c.surface; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px + T * .24, py - T * .24, T * .13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  function dibujarEntidad(e, T) {
+    const c = colores, x = e.x * T + T * .07, y = e.y * T + T * .07, s = T * .86;
+    // Cuerpo modelado: cara superior clara y canto oscuro
+    ctx.fillStyle = c.edge; rr(x, y + T * .05, s, s, T * .1); ctx.fill();
+    ctx.fillStyle = c.building; rr(x, y, s, s, T * .1); ctx.fill();
+    ctx.fillStyle = c["building-top"]; rr(x + T * .05, y + T * .05, s - T * .1, T * .2, T * .05); ctx.fill();
+    if (seleccion === e.id) { ctx.strokeStyle = c.accent; ctx.lineWidth = 2.5; rr(x - 2, y - 2, s + 4, s + T * .05 + 4, T * .12); ctx.stroke(); }
+    ctx.fillStyle = c.ink; ctx.font = `700 ${Math.max(T * .17, 9.5)}px Archivo, sans-serif`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(e.id, x + T * .09, y + T * .15);
+
+    if (e.tipo === "bodega") {
+      const mats = MATERIALES.filter(m => m in e.stock);
+      mats.forEach((m, i) => {
+        const yy = y + T * .44 + i * T * .22;
+        ctx.fillStyle = c[m]; ctx.beginPath(); ctx.arc(x + T * .2, yy, T * .075, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = e.stock[m] ? c.ink : c.muted; ctx.font = `600 ${Math.max(T * .17, 9)}px "JetBrains Mono", monospace`;
+        ctx.fillText(`${m.slice(0, 2)} ${e.stock[m]}`, x + T * .33, yy + 1);
+      });
+    } else {
+      // Material aceptado y progreso del proceso
+      const cx = x + s / 2, cy = y + T * .45, R = T * .14;
+      ctx.strokeStyle = c[e.acepta]; ctx.lineWidth = T * .05;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+      if (e.procesando) {
+        ctx.fillStyle = c[e.acepta]; ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R * .8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (e.progreso / e.tProceso)); ctx.closePath(); ctx.fill();
+      }
+      // Huecos de la entrada
+      const sy = y + T * .7, n = e.cap;
+      if (n <= 4) {
+        const sw = T * .13, gap = T * .05, tot = n * sw + (n - 1) * gap;
+        for (let i = 0; i < n; i++) {
+          const sx = cx - tot / 2 + i * (sw + gap);
+          ctx.lineWidth = 1.5; ctx.strokeStyle = c.edge; rr(sx, sy - sw / 2, sw, sw, 2); ctx.stroke();
+          if (i < e.entrada) { ctx.fillStyle = c[e.acepta]; rr(sx + 2, sy - sw / 2 + 2, sw - 4, sw - 4, 1); ctx.fill(); }
+        }
+      } else {
+        ctx.fillStyle = c.muted; ctx.font = `600 ${T * .15}px "JetBrains Mono", monospace`; ctx.textAlign = "center";
+        ctx.fillText(`${e.entrada}/${n}`, cx, sy);
+      }
+    }
+  }
+
+  $lienzo.addEventListener("click", (ev) => {
+    const rect = $lienzo.getBoundingClientRect(), T = rect.width / COLS;
+    const gx = Math.floor((ev.clientX - rect.left) / T), gy = Math.floor((ev.clientY - rect.top) / T);
+    const e = mundo.entidades.find(x => x.x === gx && x.y === gy);
+    seleccion = e ? e.id : null;
+    pintarInfo();
+  });
+
+  // ---------- Interfaz ----------
+  const $ = (id) => document.getElementById(id);
+  const $codigo = $("codigo"), $gutter = $("gutter"), $banda = $("banda"), $consola = $("consola");
+  const escapar = (s) => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+  const claseRes = (r) => r === "ok" ? "ok" : r === "derrame" ? "bad" : "warn";
+
+  function pintarRetos() {
+    $("retos").innerHTML = RETOS.map((r, i) =>
+      `<button type="button" class="reto-btn${hechos.includes(i) ? " hecho" : ""}" aria-pressed="${i === retoIdx}" data-i="${i}"><span class="n">${hechos.includes(i) ? "✓" : i + 1}</span>${r.titulo}</button>`).join("");
+  }
+  $("retos").addEventListener("click", (ev) => { const b = ev.target.closest(".reto-btn"); if (b) elegirReto(+b.dataset.i); });
+
+  function elegirReto(i) {
+    guardarBorrador();
+    cerrarPrograma();
+    retoIdx = i; guardado.escribir("reto", i);
+    intento = telemetria.filter(t => t.reto === i + 1).length;
+    const reto = RETOS[i];
+    mundo = crearMundo(reto);
+    seleccion = null; lineaCorre = lineaErr = null;
+    $("titulo").textContent = reto.titulo;
+    $("objetivo-txt").textContent = reto.objetivo;
+    $codigo.value = guardado.leer(`codigo-${i}`, reto.codigo);
+    ocultarBanner(); limpiarConsola(); pintarRetos(); pintarGutter(); pintarBanda(); pintarInfo(); pintarEventos(); pintarResumen(); pintarControles();
+    metasClave = "";
+  }
+
+  let metasClave = "";
+  function pintarHud() {
+    const reto = RETOS[retoIdx];
+    const $r = $("reloj");
+    $r.textContent = reto.tiempoMax ? `t ${mundo.t.toFixed(1)} / ${reto.tiempoMax} s` : `t ${mundo.t.toFixed(1)} s`;
+    $r.classList.toggle("tarde", !!reto.tiempoMax && mundo.t > reto.tiempoMax);
+    const partes = reto.metas.map(m => [m, metaActual(m)]);
+    const clave = partes.map(p => p[1]).join(",") + "|" + mundo.derrames + "|" + (mundo.t > (reto.tiempoMax || Infinity));
+    if (clave === metasClave) return;
+    metasClave = clave;
+    let html = partes.map(([m, v]) => `<span class="meta${v >= m.n ? " cumplida" : ""}"><i class="pt" style="background:var(--${m.mat})"></i>${m.id} ← ${m.mat} ${v}/${m.n}</span>`).join("");
+    if (reto.maxDerrames != null) html += `<span class="meta${mundo.derrames > reto.maxDerrames ? " rota" : ""}">derrames ${mundo.derrames}/${reto.maxDerrames}</span>`;
+    if (reto.tiempoMax != null) html += `<span class="meta${mundo.t > reto.tiempoMax ? " rota" : ""}">≤ ${reto.tiempoMax} s</span>`;
+    $("metas").innerHTML = html;
+    if (seleccion) pintarInfo();
+  }
+
+  function pintarInfo() {
+    const $i = $("info");
+    const e = seleccion && mundo.porId[seleccion];
+    if (!e) { $i.innerHTML = `<span>Toca un edificio para ver qué guarda y copiar su ID.</span>`; return; }
+    let desc;
+    if (e.tipo === "bodega") desc = `${e.nombre} · ` + (MATERIALES.filter(m => m in e.stock).map(m => `${m} ${e.stock[m]}`).join(" · ") || "vacía");
+    else desc = `${e.nombre} · acepta ${e.acepta} · entrada ${e.entrada}/${e.cap} · ${e.tProceso} s por pieza`;
+    $i.innerHTML = `<span><b>${e.id}</b> ${escapar(desc)}</span><button type="button" class="btn chico" id="b-insertar-id">Insertar "${e.id}"</button>`;
+    const b = $("b-insertar-id");
+    b.addEventListener("pointerdown", (ev) => ev.preventDefault());
+    b.addEventListener("click", () => insertarId(e.id));
+  }
+
+  function pintarControles() {
+    const corriendo = !!ejec;
+    const $e = $("b-ejecutar");
+    $e.textContent = corriendo ? "■ Detener" : "▶ Ejecutar";
+    $e.classList.toggle("primario", !corriendo); $e.classList.toggle("peligro", corriendo);
+    const $p = $("b-pausa");
+    $p.disabled = !corriendo; $p.textContent = pausa ? "Seguir" : "Pausa";
+    $("b-vel").textContent = `${velocidad}×`;
+    $("intento-txt").textContent = `Intento ${intento + (corriendo ? 0 : 1)} · reto ${retoIdx + 1}`;
+  }
+
+  $("b-ejecutar").addEventListener("click", () => ejec ? detener() : ejecutar());
+  $("b-pausa").addEventListener("click", () => { pausa = !pausa; pintarControles(); });
+  $("b-vel").addEventListener("click", () => { velocidad = velocidad === 1 ? 2 : velocidad === 2 ? 4 : 1; pintarControles(); });
+  $("b-reiniciar").addEventListener("click", () => {
+    if (ejec) terminar("detenido", "reinicio", null);
+    mundo = crearMundo(RETOS[retoIdx]); lineaCorre = lineaErr = null; pintarBanda(); ocultarBanner(); metasClave = ""; pintarInfo();
+  });
+  $("b-restaurar").addEventListener("click", () => { $codigo.value = RETOS[retoIdx].codigo; guardarBorrador(); pintarGutter(); });
+
+  // Pestañas
+  const TABS = ["codigo", "registro", "ayuda"];
+  document.querySelector(".tabs").addEventListener("click", (ev) => {
+    const b = ev.target.closest(".tab"); if (!b) return;
+    for (const t of TABS) { const on = `t-${t}` === b.id; $(`t-${t}`).setAttribute("aria-selected", on); $(`v-${t}`).hidden = !on; }
+    if (b.id === "t-codigo") pintarBanda();
+  });
+
+  // Banner
+  function mostrarBanner(tipo, titulo, texto, stats, acciones) {
+    const $b = $("banner");
+    $b.className = `banner ${tipo}`;
+    $b.innerHTML = `<h2>${titulo}</h2>${texto ? `<p>${texto}</p>` : ""}${stats ? `<p class="stats">${escapar(stats)}</p>` : ""}<div class="acciones"></div>`;
+    const $a = $b.querySelector(".acciones");
+    for (const [txt, cls, fn] of acciones) {
+      const b = document.createElement("button"); b.type = "button"; b.className = `btn chico ${cls}`; b.textContent = txt; b.addEventListener("click", fn); $a.appendChild(b);
+    }
+    $b.hidden = false;
+  }
+  function ocultarBanner() { $("banner").hidden = true; }
+
+  // Consola
+  function limpiarConsola() { $consola.innerHTML = `<div class="vacia">Aquí verás cada orden y lo que devuelve.</div>`; }
+  function consola(cls, linea, html) {
+    const v = $consola.querySelector(".vacia"); if (v) v.remove();
+    const d = document.createElement("div");
+    d.className = `c ${cls}`;
+    d.innerHTML = `<span class="l">${linea ? `L${linea}` : ""}</span><span>${cls === "log" ? escapar(html) : html}</span>`;
+    $consola.appendChild(d);
+    while ($consola.children.length > 120) $consola.firstChild.remove();
+    $consola.scrollTop = $consola.scrollHeight;
+  }
+
+  // Registro y telemetría
+  function pintarEventos() {
+    $("eventos").innerHTML = mundo.eventos.slice(-200).map(e =>
+      `<tr><td>${e.t.toFixed(2)}</td><td>${e.linea}</td><td>${escapar(e.orden)}</td><td class="${claseRes(e.resultado)}">${e.resultado}</td></tr>`).join("")
+      || `<tr><td colspan="4" style="color:var(--muted)">Todavía no hay órdenes en este intento.</td></tr>`;
+  }
+  function pintarResumen() {
+    const delReto = telemetria.filter(t => t.reto === retoIdx + 1);
+    const victorias = delReto.filter(t => t.resultado === "victoria");
+    const mejor = victorias.length ? Math.min(...victorias.map(v => v.tiempoJuego)).toFixed(1) + " s" : "—";
+    const primera = delReto.findIndex(t => t.resultado === "victoria");
+    const datos = [["Intentos", delReto.length], ["Cumplidos", victorias.length], ["Mejor tiempo", mejor], ["Intentos hasta cumplir", primera >= 0 ? primera + 1 : "—"]];
+    $("resumen").innerHTML = datos.map(([k, v]) => `<div class="dato"><span>${k}</span><b>${v}</b></div>`).join("");
+    $("json").value = JSON.stringify(telemetria, null, 2);
+  }
+  $("b-copiar").addEventListener("click", () => {
+    const txt = JSON.stringify(telemetria, null, 2);
+    const ok = () => { $("copiado").hidden = false; setTimeout(() => $("copiado").hidden = true, 1600); };
+    const plan_b = () => { const d = document.querySelector("details"); d.open = true; $("json").focus(); $("json").select(); };
+    try { navigator.clipboard.writeText(txt).then(ok, plan_b); } catch { plan_b(); }
+  });
+  let confirmarBorrado = false;
+  $("b-borrar").addEventListener("click", (ev) => {
+    if (!confirmarBorrado) { confirmarBorrado = true; ev.target.textContent = "¿Seguro? Toca otra vez"; setTimeout(() => { confirmarBorrado = false; ev.target.textContent = "Borrar telemetría"; }, 3000); return; }
+    confirmarBorrado = false; ev.target.textContent = "Borrar telemetría";
+    telemetria = []; guardado.escribir("telemetria", telemetria); intento = 0; pintarResumen(); pintarControles();
+  });
+
+  // ---------- Editor ----------
+  function lh() { return parseFloat(getComputedStyle($codigo).lineHeight) || 24; }
+  function pad() { return parseFloat(getComputedStyle($codigo).paddingTop) || 10; }
+  function pintarGutter() {
+    const n = $codigo.value.split("\n").length;
+    let html = "";
+    for (let i = 1; i <= n; i++) html += `<div class="${i === lineaCorre ? "corre" : i === lineaErr ? "err" : ""}">${i}</div>`;
+    $gutter.innerHTML = html;
+    sincronizarScroll();
+  }
+  function pintarBanda() {
+    const l = lineaErr || lineaCorre;
+    $banda.className = `banda ${lineaErr ? "err" : lineaCorre ? "corre" : ""}`;
+    if (l) $banda.style.top = `${pad() + (l - 1) * lh() - $codigo.scrollTop}px`;
+    pintarGutter();
+  }
+  function sincronizarScroll() {
+    $gutter.style.transform = `translateY(${-$codigo.scrollTop}px)`;
+    const l = lineaErr || lineaCorre;
+    if (l) $banda.style.top = `${pad() + (l - 1) * lh() - $codigo.scrollTop}px`;
+  }
+  function irALinea(l) {
+    $codigo.focus();
+    if (!l) return;
+    const lineas = $codigo.value.split("\n");
+    let pos = 0; for (let i = 0; i < l - 1 && i < lineas.length; i++) pos += lineas[i].length + 1;
+    $codigo.setSelectionRange(pos, pos + (lineas[l - 1] || "").length);
+  }
+  let tBorrador = 0;
+  function guardarBorrador() { guardado.escribir(`codigo-${retoIdx}`, $codigo.value); }
+  $codigo.addEventListener("input", () => {
+    if (lineaErr) { lineaErr = null; pintarBanda(); }
+    pintarGutter();
+    clearTimeout(tBorrador); tBorrador = setTimeout(guardarBorrador, 400);
+  });
+  $codigo.addEventListener("scroll", sincronizarScroll);
+  $codigo.addEventListener("keydown", (ev) => {
+    if (ev.key === "Tab") { ev.preventDefault(); insertar("  "); }
+    else if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); ejec ? detener() : ejecutar(); }
+    else if (ev.key === "Enter") {
+      // Mantiene la sangría de la línea actual y añade un nivel tras «{».
+      ev.preventDefault();
+      const antes = $codigo.value.slice(0, $codigo.selectionStart);
+      const linea = antes.slice(antes.lastIndexOf("\n") + 1);
+      const sangria = linea.match(/^\s*/)[0] + (/\{\s*$/.test(linea) ? "  " : "");
+      insertar("\n" + sangria);
+    }
+  });
+
+  function insertar(texto, cursorDesde) {
+    const a = $codigo.selectionStart, b = $codigo.selectionEnd, v = $codigo.value;
+    $codigo.value = v.slice(0, a) + texto + v.slice(b);
+    const p = a + (cursorDesde == null ? texto.length : cursorDesde);
+    $codigo.setSelectionRange(p, p);
+    $codigo.dispatchEvent(new Event("input"));
+  }
+  // Inserta un bloque en su propia línea, con la sangría de la línea actual.
+  // Si el bloque tiene una línea interior vacía, el cursor queda ahí.
+  function insertarBloque(bloque) {
+    const a = $codigo.selectionStart, v = $codigo.value;
+    const ini = v.lastIndexOf("\n", a - 1) + 1;
+    const fin = v.indexOf("\n", a) === -1 ? v.length : v.indexOf("\n", a);
+    const linea = v.slice(ini, fin);
+    const sangria = linea.match(/^\s*/)[0] + (/\{\s*$/.test(linea) ? "  " : "");
+    const texto = bloque.split("\n").map((l, i) => (i ? sangria : "") + l).join("\n");
+    const hueco = texto.indexOf("\n" + sangria + "  \n");
+    const cursor = hueco === -1 ? texto.length : hueco + 1 + sangria.length + 2;
+    if (!linea.trim()) {
+      $codigo.setSelectionRange(ini, fin);
+      insertar(sangria + texto, sangria.length + cursor);
+    } else {
+      $codigo.setSelectionRange(fin, fin);
+      insertar("\n" + sangria + texto, 1 + sangria.length + cursor);
+    }
+  }
+  function insertarId(id) {
+    const a = $codigo.selectionStart, v = $codigo.value;
+    if (v[a - 1] === '"' && v[a] === '"') insertar(id);
+    else insertar(`"${id}"`);
+  }
+
+  const ATAJOS = [
+    { t: "recoger", b: 'await yo.recoger("ENT-1", "cobre");' },
+    { t: "entregar", b: 'await yo.entregar("FUN");' },
+    { t: "for", b: "for (let i = 0; i < 3; i++) {\n  \n}" },
+    { t: "esperar", b: "await yo.esperar(2);" },
+    { t: "if", b: 'if (r === "viaje_vacio") {\n  \n}' },
+    { t: "const r =", b: 'const r = await yo.recoger("ENT-1", "cobre");' },
+    { t: "log", b: "log(r);" },
+  ];
+  const $at = $("atajos");
+  $at.innerHTML = ATAJOS.map((a, i) => `<button type="button" class="atajo" data-i="${i}">${escapar(a.t)}</button>`).join("")
+    + MATERIALES.map(m => `<button type="button" class="atajo mat" data-m="${m}"><i style="background:var(--${m})"></i>"${m}"</button>`).join("");
+  // pointerdown sin foco: el teclado del móvil no se cierra al tocar un atajo.
+  $at.addEventListener("pointerdown", (ev) => { if (ev.target.closest(".atajo")) ev.preventDefault(); });
+  $at.addEventListener("click", (ev) => {
+    const b = ev.target.closest(".atajo"); if (!b) return;
+    if (b.dataset.m) return insertarId(b.dataset.m);
+    const a = ATAJOS[+b.dataset.i];
+    insertarBloque(a.b);
+  });
+
+  // ---------- Arranque ----------
+  window.__banco = { get mundo() { return mundo; }, RETOS }; // para depurar desde la consola
+  elegirReto(retoIdx);
+  document.fonts && document.fonts.ready.then(() => { metasClave = ""; });
+  requestAnimationFrame(bucle);
+})();
+</script>
