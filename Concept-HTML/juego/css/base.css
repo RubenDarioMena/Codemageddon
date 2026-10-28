@@ -1,0 +1,120 @@
+/* Codemageddon · base: colores, tipos y las piezas de metal.
+ * Una sola apariencia, oscura: el taller de noche. El escenario y el código mandan;
+ * el metal solo marca bordes, placas e iconos grabados.
+ * Los nombres de colores del mundo (--suelo, --enemigo, --s-visual…) los lee juego.js para el 3D y el plano. */
+:root {
+  color-scheme: dark;
+  /* Superficies (grafito con sesgo azul) */
+  --bg: #0B0F13;
+  --surface: #131A20;
+  --surface-2: #19222A;
+  --code-bg: #0E1419;
+  --ink: #DCE3E6;
+  --muted: #8C99A3;
+  --line: #26313A;
+  /* Mundo */
+  --grid: #1E2830;
+  --grid-2: #2C3944;
+  --suelo: #121A20;
+  --building: #26313A;
+  --building-top: #33404A;
+  --edge: #5C6B75;
+  --enemigo: #E0644F;
+  --enemigo-frio: #A9B6C2;
+  --misil: #F2B33D;
+  --explosion: #F7B94A;
+  --s-visual: #7FA3FF;
+  --s-termico: #F08A4B;
+  --s-vibra: #5FC28A;
+  --base: rgba(127, 163, 255, .10);
+  /* Acento y estados */
+  --accent: #7FA3FF;
+  --accent-ink: #0B1220;
+  --accent-soft: rgba(127, 163, 255, .16);
+  --ok: #5FC28A;
+  --warn: #E0AE4A;
+  --warn-soft: rgba(224, 174, 74, .16);
+  --bad: #F07A70;
+  --bad-soft: rgba(240, 122, 112, .16);
+  /* Tipos en el código */
+  --tk-var: #7FA3FF;
+  --tk-fn: #CFA2FF;
+  --tk-prop: #63D2E0;
+  --tk-num: #F27AB0;
+  --tk-str: #9BD56B;
+  --tk-com: #7D8B94;
+  --tk-kw: #E2E7E2;
+  /* Metal */
+  --metal-hi: #9AA4AB;
+  --metal: #59636B;
+  --metal-lo: #262E35;
+  --metal-negro: #05080A;
+  --placa-1: #77818A;          /* placa cepillada, arriba */
+  --placa-2: #545E67;          /* placa cepillada, abajo */
+  --placa-viva-1: #2A333B;     /* placa encendida (hover) */
+  --placa-viva-2: #161C22;
+  --grabado: #0A0E12;          /* tinta del grabado */
+  --grabado-luz: rgba(255, 255, 255, .22);
+  --laton: #B4935A;            /* tornillos */
+  --laton-hi: #E7CF9C;
+  /* Tipos */
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+  --borde-metal: 3px;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
+body { font-family: var(--f-body); font-size: 14px; line-height: 1.45; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+* { scrollbar-color: var(--line) transparent; scrollbar-width: thin; }
+
+/* ---------- Piezas de metal ---------- */
+
+/* Marco: un bisel de acero de 3 px alrededor de cada zona, con tornillos de latón en las esquinas. */
+.marco {
+  position: relative;
+  border: var(--borde-metal) solid transparent;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(155deg, var(--metal-hi) 0%, var(--metal-lo) 22%, var(--metal) 48%, var(--metal-lo) 70%, var(--metal-hi) 88%, var(--metal) 100%) border-box;
+  box-shadow: 0 0 0 1px var(--metal-negro), inset 0 0 0 1px rgba(0, 0, 0, .55), 0 12px 32px rgba(0, 0, 0, .38);
+}
+.marco::after {
+  --t: radial-gradient(circle, var(--laton-hi) 0 .8px, var(--laton) 1.3px 2.3px, var(--metal-negro) 2.6px, transparent 3.1px);
+  content: ""; position: absolute; inset: 2px; pointer-events: none; z-index: 5;
+  background: var(--t) 0 0 / 8px 8px no-repeat, var(--t) 100% 0 / 8px 8px no-repeat, var(--t) 0 100% / 8px 8px no-repeat, var(--t) 100% 100% / 8px 8px no-repeat;
+}
+
+/* Regla metálica: separa secciones dentro de un panel. */
+.regla {
+  height: 3px; border-radius: 2px; flex: none;
+  background: linear-gradient(90deg, transparent, var(--metal-lo) 6%, var(--metal-hi) 30%, var(--metal) 55%, var(--metal-hi) 80%, var(--metal-lo) 94%, transparent);
+  box-shadow: 0 1px 0 var(--metal-negro);
+}
+
+/* Placa cepillada con letras grabadas (como una placa de serie). */
+.placa {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px; border-radius: 4px;
+  font-family: var(--f-display); font-stretch: 125%; font-weight: 800; font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--grabado);
+  text-shadow: 0 1px 0 var(--grabado-luz), 0 -1px 0 rgba(0, 0, 0, .35);
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .045) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, var(--placa-1), var(--placa-2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), inset 0 -1px 0 rgba(0, 0, 0, .4), 0 0 0 1px var(--metal-negro);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

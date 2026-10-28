@@ -120,3 +120,46 @@ Pruebas de interfaz (Chromium sin ventana): doble clic e inserción con huecos, 
 - **Consecuencias de optimizar**: dinero e investigación (deterministas), y además preferencia del público, percepción del gobierno propio y del rival, y relación con IA o compañías rivales (difusas, con modelos como el logit de la ciudad). Requiere los sistemas de economía, ciudad y modo historia.
 - **Defensa en el mundo**: los misiles salen de una cadena de producción y los robots reparadores son T1 o T2 con su propio programa, así que ráfaga y suministro dependen de la fábrica. Los sensores son edificios de una red con tabla `sensores` en la base.
 - **Avisos con referencia**: cualquier mensaje de una máquina enlaza a ella y centra la cámara (ya prototipado en el 03).
+
+## 2026-10-28 · El juego HTML: interfaz de juego, PC y teléfono
+
+### Feedback
+
+- Los prototipos HTML pasan a ser el primer juego (ver [Concept-HTML/BRIEF_AGENTE.md](../../Concept-HTML/BRIEF_AGENTE.md)). Prioridad: el diseño y que responda bien en cada plataforma.
+- Prompt de imagen dado a GPT: interfaz más de juego que de página web; escenario y código como protagonistas; inspector que se despliega al **mantener presionada** una unidad; secciones divididas por un **borde metálico**; las palabras sobre el código reemplazadas por **iconos grabados en metal** que toman color al pasar el cursor, con el nombre en un cuadro rápido. Las imágenes de GPT no se podían aplicar tal cual.
+- Respuestas del autor: minimalista con acentos metálicos; en PC, lado a lado y redimensionable, con el inspector muy visible, como widget sobre el mapa; partir de una copia del 03; se puede dejar de ser un solo HTML.
+
+### Hecho
+
+- `Concept-HTML/juego/`: copia del banco 03 separada en `index.html`, `css/` (base, componentes, layout) y `js/` (iconos, juego, layout). La simulación, los workers y los retos no cambian.
+- Pantalla completa sin scroll de página. Marcos de acero de 3 px con tornillos de latón, reglas metálicas entre secciones, pestañas y títulos como placas grabadas. Una sola apariencia oscura.
+- Inspector en tres estados (cerrado, tira, abierto) con signos vitales: cargador por celdas, medidor de `failureRate`, historia de 30 s y vida por celdas. Pulsación larga de 0,48 s con anillo.
+- Paleta de 13 iconos SVG (redibujados de la hoja de GPT): grabados en reposo y de color al pasar el cursor, con tooltip de nombre y código. Se añadieron atajos para apuntar, disparo, ráfaga, detener y sensor.
+- PC con divisor arrastrable; teléfono 50/50 con barra de símbolos sobre el teclado y el código que sube sin cambiar de tamaño (`visualViewport` + `interactive-widget=resizes-visual`).
+- `probar.html`: teléfono y PC a la vez, a escala, con teclado simulado.
+
+### Decisiones
+
+- **Iconos vectoriales en vez de los PNG de GPT**: a 26–30 px los PNG se emborronan, y el grabado y el color al pasar el cursor se hacen con dos tintas en CSS. La hoja de GPT queda como referencia de forma y color.
+- **Solo tema oscuro**: es un juego, y el metal grabado se lee mejor sobre grafito. Los bancos 01–03 conservan los dos temas.
+- **Inspector como capa en el mapa**, no como columna: en PC ocupa la mitad derecha (las unidades propias están a la izquierda); en teléfono cubre el mapa, que es lo que el brief pide («arriba del mapa»). Queda para Opciones convertirlo en ventana flotante.
+- **Tocar no abre la ficha**: tocar elige y muestra la tira; mantener presionado, o tocar la tira, la abre. Así el mapa sigue siendo jugable y la pulsación larga tiene un sentido propio.
+- **Varios archivos sin herramienta de compilación**: scripts clásicos, con `window.cmg` como único puente entre `juego.js` y `layout.js`. Extraer el núcleo a TypeScript es la fase 2 del brief.
+- **Desvío**: el brief pide cámara cenital por defecto con transición a 3D en Three.js. No se hizo en esta ronda; se mantienen el 3D y el plano en Canvas del 03.
+
+### Datos
+
+- Verificado en Chromium (panel del navegador) a 1366 × 768, 1440 × 860 y dentro del probador: iPhone 15 (393 × 852) con teclado simulado de 341 px. El código sube 387 px (teclado + barra) y queda entero encima. Sin errores de consola.
+- No probado en un iPhone o un Android reales.
+
+### Abierto
+
+- Probar el teclado en un iPhone real: `visualViewport.offsetTop` cuando iOS desplaza la vista al enfocar.
+- En el teléfono el campo de 32 × 18 queda con casillas de ~11 px: ¿zoom, cámara que siga la acción o mapas más pequeños?
+- Con el teclado abierto no se ve el inspector; ¿hace falta un acceso rápido a las propiedades desde la barra de símbolos?
+
+### Para el juego final
+
+- Inspector como ventana flotante configurable en Opciones (PC).
+- Cámara cenital ortográfica con transición a perspectiva (brief §5) en vez del plano en Canvas.
+- Empaquetado con Capacitor y pruebas en dispositivos de gama media.

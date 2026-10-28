@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codemageddon · Probador</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Probador: el mismo juego en marcos de teléfono y de PC a la vez, a escala, para comparar los dos repartos.
+ * Cada marco es un iframe de index.html con su tamaño real; ?marco=1 activa el teclado simulado del teléfono. */
+:root {
+  color-scheme: dark;
+  --bg: #080B0E; --surface: #131A20; --ink: #DCE3E6; --muted: #8C99A3; --line: #26313A; --accent: #7FA3FF;
+  --metal-hi: #9AA4AB; --metal: #59636B; --metal-lo: #262E35; --negro: #05080A;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif; --f-code: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--f-display); font-size: 14px; overflow: hidden; }
+.barra {
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line); background: var(--surface);
+}
+h1 { margin: 0; font-size: 13px; font-stretch: 125%; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); flex-wrap: wrap; }
+.seg button, .btn { border: 0; background: none; color: var(--muted); border-radius: 6px; padding: 5px 10px; font: inherit; font-size: 12.5px; font-weight: 650; cursor: pointer; min-height: 30px; }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, #77818A, #545E67); color: #0A0E12; text-shadow: 0 1px 0 rgba(255,255,255,.22); }
+.btn { border: 1px solid var(--line); }
+.btn:hover, .seg button:hover { color: var(--ink); }
+.etq { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+a { color: var(--accent); font-size: 13px; }
+.mesa { position: absolute; inset: 56px 0 0 0; display: flex; gap: 28px; align-items: center; justify-content: center; padding: 18px; overflow: hidden; }
+.puesto { display: grid; gap: 8px; justify-items: center; min-width: 0; }
+.puesto .nombre { font-family: var(--f-code); font-size: 12px; color: var(--muted); }
+.caja { position: relative; }
+.dispositivo {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0;
+  border: 12px solid #15191D; border-radius: 44px; background: #000;
+  box-shadow: 0 0 0 2px var(--metal), 0 0 0 3px var(--negro), 0 30px 60px rgba(0,0,0,.6);
+}
+.dispositivo.pc { border-width: 14px 14px 30px; border-radius: 14px; }
+.dispositivo iframe { display: block; border: 0; border-radius: 32px; background: #0B0F13; }
+.dispositivo.pc iframe { border-radius: 2px; }
+.nota { font-size: 12px; color: var(--muted); max-width: 70ch; }
+</style>
+</head>
+<body>
+<div class="barra" id="barra">
+  <h1>Probador</h1>
+  <span class="etq">Ver</span>
+  <div class="seg" id="modo" role="group" aria-label="Qué ver">
+    <button type="button" data-modo="ambos" aria-pressed="true">Teléfono + PC</button>
+    <button type="button" data-modo="tel" aria-pressed="false">Solo teléfono</button>
+    <button type="button" data-modo="pc" aria-pressed="false">Solo PC</button>
+  </div>
+  <span class="etq">Teléfono</span>
+  <div class="seg" id="tel" role="group" aria-label="Modelo de teléfono"></div>
+  <button class="btn" type="button" id="girar">⟳ Girar</button>
+  <span class="etq">PC</span>
+  <div class="seg" id="pc" role="group" aria-label="Pantalla de PC"></div>
+  <button class="btn" type="button" id="recargar">Recargar</button>
+  <a href="index.html">Abrir el juego solo</a>
+  <span class="nota">En el teléfono, toca el código: aparece un teclado simulado y el editor sube. Escribe con el teclado del PC.</span>
+</div>
+<div class="mesa" id="mesa"></div>
+<script>
+(() => {
+  "use strict";
+  const TELEFONOS = { "iPhone 15": [393, 852], "iPhone SE": [375, 667], "Pixel 8": [412, 915] };
+  const PCS = { "Portátil": [1366, 768], "Escritorio": [1920, 1080], "Tableta": [1024, 768] };
+  const leer = (k, d) => { try { return JSON.parse(localStorage.getItem(`cmg-probar-${k}`)) ?? d; } catch { return d; } };
+  const escribir = (k, v) => { try { localStorage.setItem(`cmg-probar-${k}`, JSON.stringify(v)); } catch {} };
+  let estado = { modo: "ambos", tel: "iPhone 15", pc: "Portátil", girado: false, ...leer("estado", {}) };
+  const $ = (id) => document.getElementById(id);
+  const mesa = $("mesa");
+
+  function seg(id, opciones, clave) {
+    $(id).innerHTML = Object.keys(opciones).map(n => `<button type="button" data-v="${n}" aria-pressed="${estado[clave] === n}">${n}</button>`).join("");
+    $(id).onclick = (ev) => { const b = ev.target.closest("button"); if (b) { estado[clave] = b.dataset.v; montar(); } };
+  }
+  $("modo").onclick = (ev) => { const b = ev.target.closest("button"); if (b) { estado.modo = b.dataset.modo; montar(); } };
+  $("girar").onclick = () => { estado.girado = !estado.girado; montar(); };
+  $("recargar").onclick = () => mesa.querySelectorAll("iframe").forEach(f => f.contentWindow.location.reload());
+
+  function puesto(nombre, [w, h], pc) {
+    const p = document.createElement("div"); p.className = "puesto";
+    p.innerHTML = `<div class="caja"><div class="dispositivo${pc ? " pc" : ""}"><iframe title="${nombre}" width="${w}" height="${h}" src="index.html?marco=1"></iframe></div></div><div class="nombre">${nombre} · ${w} × ${h}</div>`;
+    p.dataset.w = w + (pc ? 28 : 24); p.dataset.h = h + (pc ? 44 : 24);
+    return p;
+  }
+  function escalar() {
+    const puestos = [...mesa.children];
+    const r = mesa.getBoundingClientRect(), espacio = 28 * (puestos.length - 1) + 36;
+    const anchoTotal = puestos.reduce((a, p) => a + +p.dataset.w, 0), altoMax = Math.max(...puestos.map(p => +p.dataset.h));
+    const k = Math.min(1, (r.width - espacio) / anchoTotal, (r.height - 70) / altoMax);
+    for (const p of puestos) {
+      const caja = p.querySelector(".caja"), d = p.querySelector(".dispositivo");
+      caja.style.width = `${p.dataset.w * k}px`; caja.style.height = `${p.dataset.h * k}px`;
+      d.style.transform = `scale(${k})`;
+    }
+  }
+  function montar() {
+    escribir("estado", estado);
+    for (const b of $("modo").children) b.setAttribute("aria-pressed", b.dataset.modo === estado.modo);
+    seg("tel", TELEFONOS, "tel"); seg("pc", PCS, "pc");
+    mesa.style.top = `${$("barra").offsetHeight}px`;
+    mesa.innerHTML = "";
+    let [w, h] = TELEFONOS[estado.tel];
+    if (estado.girado) [w, h] = [h, w];
+    if (estado.modo !== "pc") mesa.append(puesto(estado.tel + (estado.girado ? " (horizontal)" : ""), [w, h], false));
+    if (estado.modo !== "tel") mesa.append(puesto(estado.pc, PCS[estado.pc], true));
+    escalar();
+  }
+  addEventListener("resize", () => { mesa.style.top = `${$("barra").offsetHeight}px`; escalar(); });
+  montar();
+})();
+</script>
+</body>
+</html>

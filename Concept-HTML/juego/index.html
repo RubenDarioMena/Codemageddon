@@ -1,0 +1,173 @@
+<meta charset="utf-8">
+<title>Codemageddon · Defensa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-visual">
+<meta name="theme-color" content="#0B0F13">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="css/base.css?v=2">
+<link rel="stylesheet" href="css/componentes.css?v=2">
+<link rel="stylesheet" href="css/layout.css?v=2">
+
+<div class="app" id="app" data-forma="escritorio">
+
+  <!-- ===== Mapa: reto, escenario con el inspector encima y mando ===== -->
+  <section class="zona-mapa marco" id="zona-mapa" aria-label="Escenario">
+    <header class="cabeza">
+      <span class="placa marca" aria-hidden="true">CMG</span>
+      <button class="reto-actual" id="b-reto" type="button" aria-expanded="false" aria-controls="hoja-reto">
+        <span class="n" id="reto-n">1</span>
+        <span class="tit"><span id="titulo">Primer blanco</span><span class="obj" id="objetivo-corto"></span></span>
+        <span class="chev" aria-hidden="true">▾</span>
+      </button>
+      <a class="probar" id="b-probar" href="probar.html" title="Ver el juego en teléfono y en PC a la vez">⧉ Probar en dispositivos</a>
+    </header>
+
+    <div class="escena" id="escena">
+      <div class="campo" id="campo">
+        <canvas id="c3d" aria-label="Campo de defensa en 3D"></canvas>
+        <canvas id="c2d" aria-label="Plano del campo de defensa" hidden></canvas>
+        <div class="capa" id="capa"></div>
+        <div class="hud-sup">
+          <div class="vistas" role="group" aria-label="Vista del campo">
+            <button type="button" data-vista="3d" aria-pressed="true">3D</button>
+            <button type="button" data-vista="2d" aria-pressed="false">Plano</button>
+            <button type="button" id="b-centrar" aria-label="Recentrar la cámara" data-tip="Recentrar la cámara">⌖</button>
+          </div>
+          <div class="reloj" id="reloj">t 0.0 s</div>
+        </div>
+        <div class="avisos" id="avisos" aria-live="polite"></div>
+        <div class="metas" id="metas"></div>
+        <div class="carga" id="carga" hidden></div>
+        <div class="sin3d" id="sin3d" hidden>No se pudo cargar el visor 3D (sin conexión o sin WebGL). Se muestra el plano.</div>
+        <div class="banner" id="banner" hidden></div>
+      </div>
+
+      <aside class="inspector marco" id="inspector" data-estado="cerrado" aria-label="Inspector de la unidad">
+        <div class="ins-tira" id="ins-tira"></div>
+        <div class="ins-cuerpo" id="ins-cuerpo-wrap">
+          <nav class="maquinas" id="maquinas" aria-label="Unidades del campo"></nav>
+          <div id="ins-cuerpo"></div>
+        </div>
+      </aside>
+
+      <div class="hoja-reto marco" id="hoja-reto" hidden>
+        <div class="hoja-cab">
+          <span class="placa">Retos</span>
+          <button class="cerrar" type="button" data-cerrar-hoja aria-label="Cerrar">×</button>
+        </div>
+        <nav class="retos" id="retos" aria-label="Retos"></nav>
+        <div class="regla"></div>
+        <section class="objetivo" aria-label="Objetivo">
+          <p id="objetivo-txt"></p>
+          <div class="leccion" id="leccion"></div>
+        </section>
+        <div class="regla"></div>
+        <div class="fila-sem">
+          <span>Semilla <b id="semilla-txt">1</b></span>
+          <label><input type="checkbox" id="semilla-fija"> fijar semilla</label>
+          <span class="nota">La semilla decide los fallos del lanzador: el mismo programa con la misma semilla da siempre el mismo resultado.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="controles">
+      <button class="btn primario" id="b-ejecutar" type="button">▶ Ejecutar</button>
+      <button class="btn" id="b-pausa" type="button" disabled>Pausa</button>
+      <button class="btn" id="b-vel" type="button" aria-label="Velocidad">1×</button>
+      <button class="btn" id="b-reiniciar" type="button">Reiniciar</button>
+    </div>
+  </section>
+
+  <div class="divisor" id="divisor" role="separator" tabindex="0" aria-label="Cambiar el reparto entre mapa y código" aria-orientation="vertical"><span></span></div>
+
+  <!-- ===== Código ===== -->
+  <section class="zona-codigo marco" id="zona-codigo" aria-label="Programa">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-programa" aria-selected="true" aria-controls="v-programa" type="button">Programa</button>
+      <button class="tab" role="tab" id="t-registro" aria-selected="false" aria-controls="v-registro" type="button">Registro</button>
+      <button class="tab" role="tab" id="t-ayuda" aria-selected="false" aria-controls="v-ayuda" type="button">Órdenes</button>
+      <button class="tab" role="tab" id="t-escenario" aria-selected="false" aria-controls="v-escenario" type="button">Escenario</button>
+    </div>
+
+    <section class="vista" id="v-programa" role="tabpanel" aria-labelledby="t-programa">
+      <div class="barra-prog">
+        <div class="progs" id="progs" aria-label="Programa de cada lanzador"></div>
+        <div class="herramientas">
+          <button class="mini" type="button" id="b-colores" aria-pressed="true" data-tip="Colores del código">◐</button>
+          <button class="mini" type="button" id="b-menos" aria-label="Letra más pequeña" data-tip="Letra más pequeña">A−</button>
+          <button class="mini" type="button" id="b-mas" aria-label="Letra más grande" data-tip="Letra más grande">A+</button>
+        </div>
+      </div>
+      <div class="paleta" id="paleta" role="toolbar" aria-label="Insertar en el código"></div>
+      <div class="aviso" id="aviso" hidden></div>
+      <div class="editor colores" id="editor">
+        <div class="gutter"><div class="gutter-in" id="gutter"></div></div>
+        <div class="area" id="area">
+          <div class="espejo" id="espejo" aria-hidden="true"></div>
+          <div class="banda" id="banda"></div>
+          <pre class="resaltado" id="resaltado" aria-hidden="true"></pre>
+          <textarea id="codigo" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Programa del lanzador en JavaScript"></textarea>
+        </div>
+      </div>
+      <div class="pie" id="pie" data-abierto="false">
+        <button class="pie-asa" id="b-pie" type="button" aria-expanded="false" aria-controls="pie">Consola <span aria-hidden="true">▴</span></button>
+        <div class="consola" id="consola" aria-live="polite"><div class="vacia">Aquí aparecen los console.log / warn / error y lo que reportan las máquinas.</div></div>
+        <details class="caja" id="caja-avisos">
+          <summary>Cómo se muestra cada console</summary>
+          <div class="dentro">
+            <div class="ruteo" id="ruteo"></div>
+            <div class="fila-bajo"><span>Globo: sale de la máquina que corre el programa. Pantalla: aviso grande arriba del campo, con un enlace que centra la cámara en esa máquina.</span></div>
+          </div>
+        </details>
+        <div class="fila-bajo">
+          <span id="intento-txt">Intento 1</span>
+          <span class="enlaces">
+            <button class="link" id="b-copiar-prog" type="button">Copiar a los demás lanzadores</button>
+            <button class="link" id="b-restaurar" type="button">Restaurar programa inicial</button>
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section class="vista desliza" id="v-registro" role="tabpanel" aria-labelledby="t-registro" hidden>
+      <div class="resumen" id="resumen"></div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>t (s)</th><th>Máquina</th><th>Línea</th><th>Qué</th><th>Resultado</th></tr></thead>
+          <tbody id="eventos"></tbody>
+        </table>
+      </div>
+      <div class="fila-bajo"><span>Registro del último intento, como la tabla <span class="r">eventos</span> del juego. Las lecturas de sensores aparecen en gris.</span></div>
+      <div class="fila-botones">
+        <button class="btn chico" id="b-copiar" type="button">Copiar telemetría (JSON)</button>
+        <button class="btn chico" id="b-borrar" type="button">Borrar telemetría</button>
+        <span id="copiado" class="fila-bajo" hidden>Copiada.</span>
+      </div>
+      <details class="caja">
+        <summary>Ver JSON</summary>
+        <div class="dentro"><textarea class="json" id="json" readonly aria-label="Telemetría en JSON"></textarea></div>
+      </details>
+    </section>
+
+    <section class="vista desliza ayuda" id="v-ayuda" role="tabpanel" aria-labelledby="t-ayuda" hidden></section>
+
+    <section class="vista desliza" id="v-escenario" role="tabpanel" aria-labelledby="t-escenario" hidden>
+      <div class="aviso" id="esc-aviso" hidden></div>
+      <form class="form" id="esc-form" autocomplete="off"></form>
+    </section>
+  </section>
+
+  <!-- Barra de símbolos sobre el teclado del teléfono -->
+  <div class="simbolos" id="simbolos" role="toolbar" aria-label="Símbolos y palabras clave" hidden></div>
+  <!-- Teclado simulado (solo dentro de probar.html) -->
+  <div class="teclado-sim" id="teclado-sim" aria-hidden="true" hidden></div>
+</div>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.js"></script>
+<script src="js/iconos.js?v=2" charset="utf-8"></script>
+<script src="js/juego.js?v=2" charset="utf-8"></script>
+<script src="js/layout.js?v=2" charset="utf-8"></script>

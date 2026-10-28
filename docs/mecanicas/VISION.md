@@ -2,7 +2,7 @@
 
 Documento vivo: describe cómo **deben** funcionar hoy las mecánicas de código de Codemageddon, tanto en los bancos HTML como en el juego final. Se reescribe en cada iteración para que siempre se lea completo. La historia de cada decisión, con el feedback que la originó y los datos, está en el [DIARIO](DIARIO.md).
 
-Última actualización: 2026-10-27 (bancos 01, 02 y 03).
+Última actualización: 2026-10-28 (bancos 01, 02 y 03; interfaz del juego HTML).
 
 ## 1. Principios
 
@@ -46,6 +46,12 @@ Ejemplos de contenido:
 
 Las funciones de otra máquina que solo puede dar su propio programa se muestran tachadas, con la explicación.
 
+**Cómo se abre (juego HTML, `Concept-HTML/juego/`).** El inspector es un panel propio encima del mapa, con tres estados:
+
+- **Cerrado**: no hay nada elegido.
+- **Tira**: al tocar una unidad, una ficha corta con el nombre, el estado y los **signos vitales** (gráficos propios: cargador por celdas, medidor de `failureRate` y su historia de los últimos 30 s; vida por celdas en enemigos).
+- **Abierto**: al **mantener presionada** una unidad (0,48 s, con un anillo que se carga) o al tocar la tira. Muestra la ficha completa con las tres zonas de arriba, separadas por reglas metálicas. En PC ocupa la mitad derecha del mapa; en teléfono cubre el mapa entero. Esc o ▴ lo pliega; × lo cierra.
+
 ### 2.3 Colores por tipo
 
 | Tipo | Ejemplo | Uso |
@@ -77,6 +83,15 @@ Bloques, pseudocódigo y JavaScript son pieles del mismo árbol. El texto vuelve
 - **Código de partida comentado**: en JavaScript, todo programa de partida llega comentado con una cabecera `/* … */` que explica cómo usarlo. En bloques sigue activo. Si se vuelve a bloques sin tocar el texto, se recuperan los bloques de partida.
 - **Comentar y descomentar**: `Ctrl+/` (`⌘/`) o el botón «// comentar», sobre las líneas elegidas. Los bloques `/* … */` no se tocan.
 - **Deshacer**: las inserciones usan el historial del navegador (`Ctrl+Z`).
+- **Paleta de iconos** (juego HTML): encima del código, iconos sin texto, grabados en una placa de metal. Al pasar el cursor el icono toma color y un tooltip rápido dice su nombre y lo que inserta. En teléfono, tocar lo inserta y muestra el nombre un momento. Grupos: comentar · flujo (`while (true)`, `while`, `if/else`, `??`, `esperar`, variable) · órdenes del lanzador (apuntar, disparo, ráfaga, detener, sensor de vibración si el reto lo tiene) · aviso.
+- **En pantalla táctil**, insertar desde el inspector o la paleta no abre el teclado si no estaba abierto.
+
+### 3.5 PC y teléfono (juego HTML)
+
+- **PC**: mapa y código lado a lado, con un divisor arrastrable (también con flechas; doble clic restaura 58/42). Todo cabe en una pantalla, sin scroll de página.
+- **Teléfono (vertical)**: mapa arriba y código abajo, 50/50, con el divisor también arrastrable. Al abrir el teclado el código **no cambia de tamaño**: sube y tapa parte del mapa. Encima del teclado aparece una **barra de símbolos** propia (pares, operadores, palabras clave de JavaScript, mover el cursor, `//` y ocultar). La consola queda plegada a una línea.
+- La forma se elige por el tamaño de la ventana (menos de 760 px de ancho, o menos de 1000 px en vertical, es teléfono) y se puede forzar con `?forma=movil` o `?forma=escritorio`.
+- **Probador** (`probar.html`): el juego en un marco de teléfono y otro de PC a la vez, a escala, con teclado simulado. No sustituye a probar en un iPhone real, donde el teclado es lo más delicado.
 
 ### 3.3 Quién ejecuta y con qué alcance
 
@@ -188,6 +203,7 @@ Campos propios:
 - Si conviene mostrar el desgaste acumulado además de `failureRate`.
 - Si el 3D compensa su coste en móvil (decidir con la telemetría de `vista`).
 - Un ladrillo de «propiedad» para usar `failureRate` y similares en bloques.
+- Si el teléfono necesita un mapa más grande o con zoom: con 32 columnas, cada casilla mide unos 11 px en un iPhone.
 
 ## 10. Fuera de los HTML (para el juego final)
 

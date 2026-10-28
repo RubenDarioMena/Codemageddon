@@ -1,0 +1,99 @@
+/* Codemageddon · reparto de la pantalla.
+ * PC (data-forma="escritorio"): mapa | divisor | código, lado a lado, con el divisor arrastrable.
+ * Teléfono (data-forma="movil"): mapa arriba, código abajo. Al abrir el teclado el código no cambia
+ * de tamaño: sube y tapa parte del mapa, y la barra de símbolos queda pegada encima del teclado.
+ * layout.js elige la forma y escribe --a / --b (reparto), --teclado y --sube. */
+
+.app {
+  position: fixed; inset: 0; display: grid; min-height: 0;
+  padding: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  --code-size: 14px;
+  --alto-simbolos: 46px;
+  background:
+    radial-gradient(ellipse at 30% 0%, rgba(127, 163, 255, .05), transparent 60%),
+    var(--bg);
+}
+.zona-mapa, .zona-codigo { min-width: 0; min-height: 0; }
+.zona-mapa { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+.zona-codigo { display: flex; flex-direction: column; gap: 10px; padding: 10px; }
+.zona-codigo > .vista { flex: 1 1 auto; }
+#v-programa { display: flex; flex-direction: column; gap: 8px; }
+#v-programa > .editor { flex: 1 1 auto; min-height: 9rem; }
+#v-programa > .pie { flex: none; }
+
+/* ---------- PC ---------- */
+.app[data-forma="escritorio"] { grid-template-columns: minmax(0, var(--a, 58fr)) 16px minmax(0, var(--b, 42fr)); }
+.app[data-forma="escritorio"] .divisor { cursor: col-resize; }
+
+/* Inspector en PC: la tira es una ficha arriba a la derecha; abierto ocupa todo el alto del mapa. */
+.app[data-forma="escritorio"] .inspector[data-estado="tira"] { top: 8px; right: 8px; width: min(360px, calc(100% - 16px)); }
+.app[data-forma="escritorio"] .inspector[data-estado="abierto"] { top: 8px; right: 8px; bottom: 8px; width: clamp(360px, 54%, 580px); max-width: calc(100% - 16px); animation: entrar-der .18s ease-out; }
+.app[data-forma="escritorio"] .escena:has(.inspector[data-estado="abierto"]) .metas { right: calc(clamp(360px, 54%, 580px) + 16px); }
+.app[data-forma="escritorio"] .escena:has(.inspector[data-estado="abierto"]) .banner { right: calc(clamp(360px, 54%, 580px) + 16px); }
+@keyframes entrar-der { from { opacity: 0; transform: translateX(14px); } }
+
+/* ---------- Teléfono ---------- */
+.app[data-forma="movil"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, var(--a, 50fr)) 16px minmax(0, var(--b, 50fr));
+  padding: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px)) max(6px, env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));
+  --code-size: 13px;
+  --radius: 9px;
+}
+.app[data-forma="movil"] .zona-mapa { padding: 6px; gap: 6px; }
+.app[data-forma="movil"] .zona-codigo { padding: 6px; gap: 6px; }
+.app[data-forma="movil"] .cabeza { gap: 6px; }
+.app[data-forma="movil"] .marca, .app[data-forma="movil"] .probar, .app[data-forma="movil"] .reto-actual .obj { display: none; }
+.app[data-forma="movil"] .reto-actual { padding: 0 4px; gap: 8px; }
+.app[data-forma="movil"] .reto-actual .n { width: 22px; height: 22px; font-size: 12px; }
+.app[data-forma="movil"] #titulo { font-size: 15px; }
+.app[data-forma="movil"] .controles { gap: 6px; }
+.app[data-forma="movil"] .btn { min-height: 40px; padding: 6px 8px; font-size: 13.5px; }
+.app[data-forma="movil"] .hud-sup { top: 6px; left: 6px; }
+.app[data-forma="movil"] .vistas button { padding: 2px 8px; min-height: 28px; font-size: 12px; }
+.app[data-forma="movil"] .reloj { padding: 4px 6px; font-size: 12px; }
+.app[data-forma="movil"] .metas { left: 6px; right: 6px; bottom: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.app[data-forma="movil"] .metas::-webkit-scrollbar { display: none; }
+.app[data-forma="movil"] .meta { font-size: 11.5px; padding: 2px 7px; }
+.app[data-forma="movil"] .avisos { top: 42px; }
+.app[data-forma="movil"] .divisor { cursor: row-resize; }
+.app[data-forma="movil"] .divisor span { width: 56px; height: 6px; background: repeating-linear-gradient(90deg, var(--metal-hi) 0 2px, var(--metal-lo) 2px 4px); }
+.app[data-forma="movil"] .hoja-reto { top: 6px; left: 6px; width: calc(100% - 12px); max-height: calc(100% - 12px); padding: 10px 12px 12px; }
+.app[data-forma="movil"] .retos { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+
+/* Inspector en teléfono: baja desde arriba del mapa; abierto cubre el mapa entero. */
+.app[data-forma="movil"] .inspector[data-estado="tira"] { top: 6px; left: 6px; right: 6px; }
+.app[data-forma="movil"] .inspector[data-estado="abierto"] { top: 0; left: 0; right: 0; bottom: 0; animation: bajar .16s ease-out; }
+.app[data-forma="movil"] .ins-tira { padding: 8px 10px; gap: 6px; }
+.app[data-forma="movil"] .ins-cab h2 { font-size: 16px; }
+.app[data-forma="movil"] .vitales { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+.app[data-forma="movil"] .vital { padding: 5px 7px; }
+.app[data-forma="movil"] .ins-cuerpo { padding: 0 10px 10px; }
+
+/* Código en teléfono: pestañas y paleta compactas; la consola queda plegada a una línea. */
+.app[data-forma="movil"] .tab { padding: 5px 9px; font-size: 10.5px; min-height: 30px; }
+.app[data-forma="movil"] .paleta { padding: 4px; gap: 4px; }
+.app[data-forma="movil"] .atajo { width: 40px; height: 40px; }
+.app[data-forma="movil"] .atajo svg { width: 26px; height: 26px; }
+.app[data-forma="movil"] .mini { min-height: 30px; min-width: 32px; padding: 2px 6px; }
+.app[data-forma="movil"] #v-programa > .editor { min-height: 5rem; }
+.app[data-forma="movil"] .pie-asa {
+  display: flex; align-items: center; justify-content: space-between; border: 0; background: none; padding: 0 2px; min-height: 22px; cursor: pointer;
+  font-family: var(--f-display); font-stretch: 112%; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; color: var(--muted);
+}
+.app[data-forma="movil"] .pie { gap: 4px; }
+.app[data-forma="movil"] .pie[data-abierto="false"] .consola { max-height: 2.3rem; min-height: 2.3rem; padding: 3px 8px; font-size: 12px; }
+.app[data-forma="movil"] .pie[data-abierto="false"] .caja,
+.app[data-forma="movil"] .pie[data-abierto="false"] > .fila-bajo { display: none; }
+.app[data-forma="movil"] .pie[data-abierto="true"] .pie-asa span { display: inline-block; transform: rotate(180deg); }
+.app[data-forma="movil"] .pie[data-abierto="true"] .consola { max-height: 7rem; }
+.app[data-forma="movil"] .consola .c { grid-template-columns: 5.4em minmax(0, 1fr); }
+
+/* Con el teclado abierto: el código sube sin cambiar de tamaño y tapa parte del mapa. */
+.app[data-forma="movil"] .zona-codigo { transition: transform .18s ease-out; z-index: 40; }
+.app.teclado[data-forma="movil"] .zona-codigo { transform: translateY(calc(-1 * var(--sube, 0px))); box-shadow: 0 0 0 1px var(--metal-negro), 0 -14px 40px rgba(0, 0, 0, .6); }
+.app.teclado[data-forma="movil"] .divisor { visibility: hidden; }
+.app.teclado[data-forma="movil"] .pie { display: none; }
+
+/* En PC la paleta se parte en dos filas antes que esconder iconos. */
+.app[data-forma="escritorio"] .paleta { flex-wrap: wrap; }
