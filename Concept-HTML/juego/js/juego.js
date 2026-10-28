@@ -612,6 +612,8 @@ onmessage = async (ev) => {
   let def = null, programas = {}, progSel = "LAU-01";
   let mundo = null, ejec = null, pausa = false, velocidad = 1, turbo = 1, intento = 0, semilla = 1;
   let seleccion = null;
+  let seleccionadas = new Set();
+  let edicion = { ids: [], mixto: false };
   let lineaCorre = {}, lineaErr = null;
   let insercion = { dobleClic: 0, arrastre: 0, atajo: 0 };
   let eventosSucios = false, marcasSucias = false;
@@ -986,6 +988,15 @@ onmessage = async (ev) => {
       else if (e) anillo(.95, M.sel, e.cx, e.cy);
       else { const en = mundo.enemigos.find(x => x.id === id); if (!en) return; anillo(.6, M.sel, 0, 0); grupo.userData.sigue = id; }
       anillos = grupo; movil.add(grupo);
+      for (const otro of seleccionadas) {
+        if (otro === id) continue;
+        const u = mundo.porId[otro] || mundo.enemigos.find(e => e.id === otro);
+        if (!u) continue;
+        const a = mesh(new THREE.RingGeometry(.55, .65, 32), M.sel);
+        a.rotation.x = -Math.PI / 2;
+        a.userData.unidad = otro;
+        grupo.add(a);
+      }
     }
 
     function posMisil(mi, t) {
@@ -1053,6 +1064,12 @@ onmessage = async (ev) => {
         const en = mundo.enemigos.find(x => x.id === anillos.userData.sigue);
         if (en) anillos.position.set(en.x + en.vx * off, en.z, en.y); else anillos.visible = false;
       }
+      if (anillos) for (const a of anillos.children) {
+        if (!a.userData.unidad) continue;
+        const u = mundo.porId[a.userData.unidad] || mundo.enemigos.find(e => e.id === a.userData.unidad);
+        a.visible = !!u;
+        if (u) a.position.set((u.cx ?? u.x) - anillos.position.x, .04 - anillos.position.y, (u.cy ?? u.y) - anillos.position.z);
+      }
     }
 
     function colocarCamara() {
@@ -1085,17 +1102,25 @@ onmessage = async (ev) => {
       for (const hit of hits) { let o = hit.object; while (o && !o.userData.id) o = o.parent; if (o) return o.userData.id; }
       return null;
     }
+    function suelo(px, py, w, h) {
+      ndc.set(px / w * 2 - 1, -(py / h) * 2 + 1);
+      ray.setFromCamera(ndc, camara);
+      const punto = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+      return punto ? { x: punto.x, y: punto.z, z: 0 } : null;
+    }
     function centrar(x, y) { cam.x = x; cam.z = y + 1; cam.dist = Math.min(cam.dist, 22); camaraMovida = true; }
     function recentrar() { Object.assign(cam, cam0); camaraMovida = false; }
 
-    // Cámara: arrastrar = orbitar · botón derecho o dos dedos = desplazar · rueda o pellizco = zoom.
+    // Cámara: rueda presionada = orbitar · botón derecho o dos dedos = desplazar.
+    // El botón izquierdo y la selección táctil se manejan juntos en el campo.
     const canvas = $("c3d"), punteros = new Map();
     let gesto = null;
     canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
     canvas.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType !== "touch" && ev.button !== 1 && ev.button !== 2) return;
       canvas.setPointerCapture(ev.pointerId);
       punteros.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-      gesto = { x0: ev.clientX, y0: ev.clientY, movido: 0, desplazar: ev.button === 2 || ev.shiftKey, dist0: null };
+      gesto = { movido: 0, desplazar: ev.button === 2, tactil: ev.pointerType === "touch", dist0: null };
       camaraMovida = true;
     });
     canvas.addEventListener("pointermove", (ev) => {
@@ -1108,13 +1133,13 @@ onmessage = async (ev) => {
         if (gesto.dist0) cam.dist = Math.min(70, Math.max(8, cam.dist * gesto.dist0 / d));
         gesto.dist0 = d;
         desplazar(dx / 2, dy / 2);
-      } else if (gesto.desplazar) desplazar(dx, dy);
+      } else if (gesto.tactil && arrastreCampo && arrastreCampo.modo === "seleccion") return;
+      else if (gesto.desplazar || gesto.tactil) desplazar(dx, dy);
       else { cam.yaw -= dx * .006; cam.pitch = Math.min(1.5, Math.max(.28, cam.pitch + dy * .005)); }
     });
     const soltar = (ev) => {
       punteros.delete(ev.pointerId);
       if (gesto && punteros.size === 0) {
-        if (gesto.movido < 6) { const r = canvas.getBoundingClientRect(); const id = elegir(ev.clientX - r.left, ev.clientY - r.top, r.width, r.height); seleccionar(id); }
         gesto = null;
       } else if (gesto) gesto.dist0 = null;
     };
@@ -1127,7 +1152,7 @@ onmessage = async (ev) => {
       cam.x = Math.min(COLS, Math.max(0, cam.x - (dx * sx + dy * Math.sin(cam.yaw)) * k));
       cam.z = Math.min(ROWS + 4, Math.max(-2, cam.z - (dx * sz + dy * Math.cos(cam.yaw)) * k));
     }
-    return { construir, actualizar, render, tamano, proyectar, elegir, centrar, recentrar, anillosDe, aplicarColores };
+    return { construir, actualizar, render, tamano, proyectar, elegir, suelo, centrar, recentrar, anillosDe, aplicarColores };
   })();
 
   // ---------- Vista de plano (2D) ----------
@@ -1174,7 +1199,7 @@ onmessage = async (ev) => {
       c.strokeStyle = col["s-vibra"]; c.lineWidth = 1; for (const k of [.55, .8]) { c.beginPath(); c.arc(P(s.cx), Q(s.cy), T * k, 0, Math.PI * 2); c.stroke(); }
     }
     for (const l of mundo.lanzadores) {
-      caja(l.cx, l.cy, 1.1, 1.1, col.building, l.atascado ? col.bad : seleccion === l.id ? col.accent : col.edge);
+      caja(l.cx, l.cy, 1.1, 1.1, col.building, l.atascado ? col.bad : seleccionadas.has(l.id) ? col.accent : col.edge);
       c.strokeStyle = l.atascado ? col.bad : col.ink; c.lineWidth = Math.max(2, T * .18); c.lineCap = "round";
       c.beginPath(); c.moveTo(P(l.cx), Q(l.cy)); c.lineTo(P(l.cx + Math.cos(l.yaw) * .7), Q(l.cy + Math.sin(l.yaw) * .7)); c.stroke(); c.lineCap = "butt";
       if (l.lugar && !l.atascado && l.modo !== "idle") {
@@ -1198,7 +1223,7 @@ onmessage = async (ev) => {
         c.beginPath(); c.moveTo(x, y - T * .36); c.lineTo(x + T * .36, y); c.lineTo(x, y + T * .36); c.lineTo(x - T * .36, y); c.closePath();
         if (tp.frio) { c.strokeStyle = color; c.lineWidth = 2; c.stroke(); } else { c.fillStyle = color; c.fill(); }
       }
-      if (seleccion === e.id) { c.strokeStyle = col.accent; c.lineWidth = 2; c.beginPath(); c.arc(x, y, T * .62, 0, Math.PI * 2); c.stroke(); }
+      if (seleccionadas.has(e.id)) { c.strokeStyle = col.accent; c.lineWidth = 2; c.beginPath(); c.arc(x, y, T * .62, 0, Math.PI * 2); c.stroke(); }
     }
     const t = mundo.t + off;
     for (const mi of mundo.misiles) {
@@ -1227,26 +1252,93 @@ onmessage = async (ev) => {
     for (const e of [...mundo.maquinas, ...mundo.enemigos]) { const ex = e.cx ?? e.x, ey = e.cy ?? e.y, d = Math.hypot(ex - x, ey - y); if (d < dm) { dm = d; mejor = e.id; } }
     return mejor;
   }
-  $c2d.addEventListener("click", (ev) => { const r = $c2d.getBoundingClientRect(); seleccionar(elegir2D(ev.clientX - r.left, ev.clientY - r.top)); });
-
-  // Pulsación larga en el campo: un anillo se carga sobre la unidad y, al completarse, abre su ficha.
+  // Ratón y tacto comparten la selección. La cámara conserva sus botones y los gestos de dos dedos.
   const LARGO_MS = 480, $campo = $("campo"), $carga = $("carga");
-  let largo = null;
+  const $cajaSeleccion = $("seleccion-caja"), punterosCampo = new Set();
+  let largo = null, arrastreCampo = null, ultimoToque = null, tFicha = 0;
+  let campoCoordenadas = null;
+  const unidades = () => [...mundo.maquinas, ...mundo.enemigos];
+  const unidadPorId = (id) => mundo.porId[id] || mundo.enemigos.find(e => e.id === id);
+  function puntoPantalla(e) {
+    const r = $campo.getBoundingClientRect();
+    const p = vista === "3d" && V3
+      ? V3.proyectar(e.cx ?? e.x, e.z || 0, e.cy ?? e.y, r.width, r.height)
+      : proyectar2D(e.cx ?? e.x, e.cy ?? e.y);
+    return { x: p.x + r.left, y: p.y + r.top, visible: p.visible && p.x >= 0 && p.x <= r.width && p.y >= 0 && p.y <= r.height };
+  }
   function unidadEn(cx, cy) {
     const r = $campo.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
     return vista === "3d" && V3 ? V3.elegir(x, y, r.width, r.height) : elegir2D(x, y);
   }
+  function coordenadasEn(cx, cy) {
+    const r = $campo.getBoundingClientRect(), x = cx - r.left, y = cy - r.top;
+    const p = vista === "3d" && V3 ? V3.suelo(x, y, r.width, r.height) : { x: (x - geo2.ox) / geo2.T, y: (y - geo2.oy) / geo2.T, z: 0 };
+    return p && p.x >= 0 && p.x <= COLS && p.y >= 0 && p.y <= ROWS ? { x: r2(p.x), y: r2(p.y), z: 0 } : null;
+  }
+  document.addEventListener("focusin", (ev) => {
+    if (ev.target.matches("[data-coordenadas]")) campoCoordenadas = ev.target;
+    else campoCoordenadas = null;
+  });
+  function escribirCoordenadas(x, y) {
+    if (!campoCoordenadas || !campoCoordenadas.isConnected || campoCoordenadas.disabled || campoCoordenadas.readOnly) return false;
+    const p = coordenadasEn(x, y);
+    if (p) {
+      campoCoordenadas.value = fmtLugar(p);
+      campoCoordenadas.dispatchEvent(new Event("input", { bubbles: true }));
+      campoCoordenadas.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    return true;
+  }
+  function igualesVisibles(id) {
+    const e = unidadPorId(id);
+    if (!e) return;
+    const tipo = (u) => u.clase || `enemigo:${u.tipo}`;
+    seleccionar(unidades().filter(u => tipo(u) === tipo(e) && puntoPantalla(u).visible).map(u => u.id));
+  }
+  function dobleEnCampo(x, y) {
+    clearTimeout(tFicha); ultimoToque = null;
+    if (escribirCoordenadas(x, y)) return;
+    const id = unidadEn(x, y);
+    if (id) igualesVisibles(id);
+  }
+  $campo.addEventListener("dblclick", (ev) => {
+    if (ev.button !== 0 || ev.target.tagName !== "CANVAS") return;
+    ev.preventDefault();
+    // El doble toque ya se procesa en pointerup, sin depender del clic sintético.
+    if (ev.sourceCapabilities && ev.sourceCapabilities.firesTouchEvents) return;
+    dobleEnCampo(ev.clientX, ev.clientY);
+  });
   function cancelarLargo() { if (largo) { cancelAnimationFrame(largo.raf); clearTimeout(largo.fin); } largo = null; $carga.hidden = true; }
+  function cancelarArrastre() {
+    cancelarLargo(); arrastreCampo = null; $cajaSeleccion.hidden = true;
+  }
   $campo.addEventListener("pointerdown", (ev) => {
+    if (ev.target.tagName !== "CANVAS") return;
     cerrarHoja();
-    if (ev.button > 0 || largo || ev.target.closest(".hud-sup, .metas, .banner, .avisos")) return;
+    clearTimeout(tFicha);
+    punterosCampo.add(ev.pointerId);
+    if (punterosCampo.size > 1) { cancelarArrastre(); ultimoToque = null; return; }
+    if (ev.button !== 0) return;
+    ev.target.setPointerCapture(ev.pointerId);
+    // Evita que el mapa quite el foco al destino de coordenadas.
+    if (campoCoordenadas) ev.preventDefault();
     const id = unidadEn(ev.clientX, ev.clientY);
-    if (!id) return;
+    arrastreCampo = { puntero: ev.pointerId, tactil: ev.pointerType === "touch", x: ev.clientX, y: ev.clientY, px: ev.clientX, py: ev.clientY, t0: performance.now(), id, modo: null, movido: false, base: ev.shiftKey ? [...seleccionadas] : [] };
+    if (!id || campoCoordenadas) return;
     const r = $campo.getBoundingClientRect();
     largo = { puntero: ev.pointerId, id, x: ev.clientX, y: ev.clientY, t0: performance.now(), raf: 0 };
     $carga.style.left = `${ev.clientX - r.left}px`; $carga.style.top = `${ev.clientY - r.top}px`; $carga.style.setProperty("--p", 0);
     // El temporizador decide; el anillo solo acompaña (sin fotogramas, la ficha se abre igual).
-    largo.fin = setTimeout(() => { const elegido = largo.id; cancelarLargo(); seleccionar(elegido); abrirInspector(); if (navigator.vibrate) navigator.vibrate(12); }, LARGO_MS);
+    largo.fin = setTimeout(() => {
+      if (!arrastreCampo || !largo) return;
+      const elegido = largo.id;
+      arrastreCampo.ficha = true;
+      const ids = arrastreCampo.modo === "seleccion" ? [...seleccionadas] : [elegido];
+      cancelarLargo(); seleccionar(ids, { inspeccionar: false });
+      // El dedo sigue capturado por el mapa para poder continuar seleccionando.
+      ponerInspector("abierto");
+      if (navigator.vibrate) navigator.vibrate(12);
+    }, LARGO_MS);
     const tick = (now) => {
       if (!largo) return;
       const u = (now - largo.t0 - 110) / (LARGO_MS - 110);
@@ -1255,8 +1347,65 @@ onmessage = async (ev) => {
     };
     largo.raf = requestAnimationFrame(tick);
   }, true);
-  $campo.addEventListener("pointermove", (ev) => { if (largo && ev.pointerId === largo.puntero && Math.hypot(ev.clientX - largo.x, ev.clientY - largo.y) > 8) cancelarLargo(); }, true);
-  for (const tipo of ["pointerup", "pointercancel", "pointerleave"]) $campo.addEventListener(tipo, (ev) => { if (largo && ev.pointerId === largo.puntero) cancelarLargo(); }, true);
+  function sumarRecorrido(a, x, y) {
+    const ids = new Set(a.modo === "seleccion" ? seleccionadas : a.base);
+    if (a.id) ids.add(a.id);
+    const dx = x - a.px, dy = y - a.py, d2 = dx * dx + dy * dy;
+    for (const u of unidades()) {
+      const p = puntoPantalla(u); if (!p.visible) continue;
+      const t = d2 ? Math.max(0, Math.min(1, ((p.x - a.px) * dx + (p.y - a.py) * dy) / d2)) : 0;
+      if (Math.hypot(p.x - a.px - t * dx, p.y - a.py - t * dy) <= 18) ids.add(u.id);
+    }
+    a.modo = "seleccion";
+    seleccionar([...ids], { inspeccionar: false });
+  }
+  $campo.addEventListener("pointermove", (ev) => {
+    const a = arrastreCampo;
+    if (!a || a.puntero !== ev.pointerId) return;
+    const distancia = Math.hypot(ev.clientX - a.x, ev.clientY - a.y);
+    if (distancia > 8) a.movido = true;
+    if (a.tactil) {
+      if (a.modo === "camara") return;
+      if (a.movido && a.modo !== "seleccion" && performance.now() - a.t0 < LARGO_MS / 3) { a.modo = "camara"; cancelarLargo(); return; }
+      if (a.movido && (a.modo === "seleccion" || performance.now() - a.t0 >= LARGO_MS / 3)) sumarRecorrido(a, ev.clientX, ev.clientY);
+    } else if (a.movido) {
+      cancelarLargo(); a.modo = "caja";
+      const r = $campo.getBoundingClientRect();
+      $cajaSeleccion.hidden = false;
+      Object.assign($cajaSeleccion.style, { left: `${Math.min(a.x, ev.clientX) - r.left}px`, top: `${Math.min(a.y, ev.clientY) - r.top}px`, width: `${Math.abs(ev.clientX - a.x)}px`, height: `${Math.abs(ev.clientY - a.y)}px` });
+    }
+    a.px = ev.clientX; a.py = ev.clientY;
+  }, true);
+  $campo.addEventListener("pointerup", (ev) => {
+    punterosCampo.delete(ev.pointerId);
+    const a = arrastreCampo;
+    if (!a || a.puntero !== ev.pointerId) return;
+    if (a.modo === "caja") {
+      seleccionar([...a.base, ...unidades().filter(u => {
+        const p = puntoPantalla(u);
+        return p.visible && p.x >= Math.min(a.x, ev.clientX) && p.x <= Math.max(a.x, ev.clientX) && p.y >= Math.min(a.y, ev.clientY) && p.y <= Math.max(a.y, ev.clientY);
+      }).map(u => u.id)]);
+    } else if (a.modo === "seleccion") seleccionar([...seleccionadas]);
+    else if (!a.movido && !a.ficha) {
+      if (a.tactil) {
+        const ahora = performance.now();
+        if (ultimoToque && ahora - ultimoToque.t < 320 && Math.hypot(ev.clientX - ultimoToque.x, ev.clientY - ultimoToque.y) < 24) dobleEnCampo(ev.clientX, ev.clientY);
+        else {
+          ultimoToque = { t: ahora, x: ev.clientX, y: ev.clientY };
+          if (!campoCoordenadas) {
+            seleccionar(a.id, { inspeccionar: false });
+            tFicha = setTimeout(() => { if (seleccion) ponerInspector(inspectorCompleto() ? "abierto" : "tira"); }, 320);
+          }
+        }
+      } else if (!campoCoordenadas) seleccionar(a.base.length ? [...a.base, a.id].filter(Boolean) : a.id);
+    }
+    cancelarArrastre();
+  }, true);
+  for (const tipo of ["pointercancel", "lostpointercapture"]) $campo.addEventListener(tipo, (ev) => {
+    punterosCampo.delete(ev.pointerId);
+    if (arrastreCampo && arrastreCampo.puntero === ev.pointerId) cancelarArrastre();
+  }, true);
+  addEventListener("blur", () => { clearTimeout(tFicha); punterosCampo.clear(); cancelarArrastre(); });
 
   // ---------- Etiquetas y globos sobre el campo ----------
   const $capa = $("capa"), etiquetas = new Map();
@@ -1276,7 +1425,7 @@ onmessage = async (ev) => {
       const atasco = e.clase === "lanzador" && e.atascado;
       const txt = e.clase === "lanzador" ? `${e.id} · ${e.misiles}▮${atasco ? " ⚠" : ""}` : e.id;
       if (txt !== o.txtEtq) { o.etq.textContent = txt; o.txtEtq = txt; }
-      o.etq.className = `etq${seleccion === e.id ? " sel" : ""}${atasco ? " atasco" : ""}`;
+      o.etq.className = `etq${seleccionadas.has(e.id) ? " sel" : ""}${atasco ? " atasco" : ""}`;
       o.etq.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`;
       o.etq.hidden = !p.visible || (e.clase === "reparador" && vista === "2d");
       const gl = globos.get(e.id);
@@ -1319,20 +1468,28 @@ onmessage = async (ev) => {
     return Object.fromEntries(def.lanzadores.map(l => [l.id, typeof g[l.id] === "string" ? g[l.id] : textoInicial(def, l.id)]));
   }
   let tGuardar = 0;
-  function guardarProgramas() { clearTimeout(tGuardar); tGuardar = setTimeout(() => guardado.escribir(`prog-${claveReto()}`, programas), 300); }
+  function guardarProgramas() {
+    clearTimeout(tGuardar);
+    const clave = `prog-${claveReto()}`, copia = { ...programas };
+    tGuardar = setTimeout(() => guardado.escribir(clave, copia), 300);
+  }
 
   function nuevoMundo() {
     mundo = crearMundo(def, semilla);
     if (V3) V3.construir();
     for (const o of etiquetas.values()) { o.etq.remove(); o.g.remove(); }
     etiquetas.clear(); globos.clear();
-    if (seleccion && !mundo.porId[seleccion]) seleccion = def.lanzadores[0].id;
+    seleccionadas = new Set([...seleccionadas].filter(id => unidadPorId(id)));
+    if (!seleccionadas.size) seleccionadas.add(def.lanzadores[0].id);
+    seleccion = [...seleccionadas][0];
+    if (V3) V3.anillosDe(seleccion);
     historia.clear();
     pintarMaquinas(); pintarInspector();
     metasClave = "";
   }
 
   function elegirReto(i) {
+    clearTimeout(tFicha); cancelarArrastre(); ultimoToque = null;
     cerrarProgramas();
     retoIdx = i; guardado.escribir("reto", i);
     def = defActual();
@@ -1341,6 +1498,8 @@ onmessage = async (ev) => {
     programas = cargarProgramas();
     progSel = def.lanzadores[0].id;
     seleccion = def.lanzadores[0].id;
+    seleccionadas = new Set([seleccion]);
+    edicion = { ids: [], mixto: false };
     lineaCorre = {}; lineaErr = null;
     nuevoMundo();
     $("titulo").textContent = def.titulo;
@@ -1412,20 +1571,29 @@ onmessage = async (ev) => {
 
   // ---------- Máquinas e inspector ----------
   function pintarMaquinas() {
-    $("maquinas").innerHTML = mundo.maquinas.map(e => `<button type="button" class="maq-chip" data-id="${e.id}" aria-pressed="${seleccion === e.id}">${e.id}</button>`).join("")
+    $("maquinas").innerHTML = mundo.maquinas.map(e => `<button type="button" class="maq-chip" data-id="${e.id}" aria-pressed="${seleccionadas.has(e.id)}">${e.id}</button>`).join("")
       + `<span class="fila-bajo" style="align-self:center">En el campo: toca para elegir, mantén presionado para abrir la ficha.</span>`;
   }
   $("maquinas").addEventListener("click", (ev) => { const b = ev.target.closest(".maq-chip"); if (b) seleccionar(b.dataset.id); });
   // El inspector tiene tres estados: cerrado (nada elegido), tira (nombre y signos vitales) y abierto (ficha completa).
   let insEstado = "cerrado";
-  function seleccionar(id) {
-    seleccion = id || null;
+  const inspectorCompleto = () => $("app").dataset.forma === "movil" && $("app").dataset.inspectorMovil !== "tira";
+  function seleccionar(id, opciones = {}) {
+    const ids = (Array.isArray(id) ? id : id ? [id] : []).filter(id => unidadPorId(id));
+    seleccionadas = new Set(ids);
+    seleccion = ids[0] || null;
     if (V3) V3.anillosDe(seleccion);
-    document.querySelectorAll(".maq-chip").forEach(b => b.setAttribute("aria-pressed", b.dataset.id === seleccion));
-    if (!seleccion) insEstado = "cerrado";
+    document.querySelectorAll(".maq-chip").forEach(b => b.setAttribute("aria-pressed", seleccionadas.has(b.dataset.id)));
+    if (!seleccion || opciones.inspeccionar === false) insEstado = "cerrado";
+    else if (inspectorCompleto()) insEstado = "abierto";
     else if (insEstado === "cerrado") insEstado = "tira";
+    const programables = ids.filter(id => Object.hasOwn(programas, id));
+    configurarEdicion(programables.length ? programables : [progSel]);
     pintarInspector();
   }
+  $("app").addEventListener("cmg:forma", () => {
+    if (seleccion && inspectorCompleto() && insEstado !== "cerrado") ponerInspector("abierto");
+  });
   function ponerInspector(estado) { insEstado = seleccion ? estado : "cerrado"; pintarInspector(); }
   const abrirInspector = () => ponerInspector("abierto");
 
@@ -1521,7 +1689,7 @@ onmessage = async (ev) => {
     const m = metricasDe(e);
     const abierto = insEstado === "abierto";
     $("ins-tira").innerHTML = `
-      <div class="ins-cab"><div class="nombre"><h2>${esc(e.id)}</h2><span class="estado ${cls}" data-estado>${esc(txt)}</span><span class="clase">${esc(clase)}</span></div>
+      <div class="ins-cab"><div class="nombre"><h2>${esc(e.id)}${seleccionadas.size > 1 ? ` · ${seleccionadas.size} seleccionadas` : ""}</h2><span class="estado ${cls}" data-estado>${esc(txt)}</span><span class="clase">${esc(clase)}</span></div>
         <div class="ins-acc">${V3 && vista === "3d" ? `<button type="button" data-accion="centrar" aria-label="Centrar la cámara en ${esc(e.id)}" data-tip="Centrar la cámara">⌖</button>` : ""}<button type="button" data-accion="${abierto ? "plegar" : "abrir"}" aria-label="${abierto ? "Plegar la ficha" : "Abrir la ficha completa"}" data-tip="${abierto ? "Plegar la ficha" : "Ficha completa"}">${abierto ? "▴" : "▾"}</button><button type="button" data-accion="cerrar" aria-label="Cerrar el inspector" data-tip="Cerrar">×</button></div></div>
       <div class="vitales" id="ins-vitales">${htmlVitales(e)}</div>
       <div class="ins-pista">Mantén presionada una unidad, o toca aquí, para ver su ficha completa.</div>`;
@@ -1605,7 +1773,7 @@ onmessage = async (ev) => {
     const $i = $("inspector");
     muestrear();
     const e = seleccion && (mundo.porId[seleccion] || mundo.enemigos.find(x => x.id === seleccion));
-    if (seleccion && !e) { seleccion = null; pintarInspector(); return; }
+    if ([...seleccionadas].some(id => !unidadPorId(id))) { seleccionar([...seleccionadas].filter(id => unidadPorId(id))); return; }
     if (!e) return;
     for (const el of $i.querySelectorAll("[data-vivo]")) {
       const v = valorVivo(el.dataset.vivo); if (v == null) continue;
@@ -1673,18 +1841,70 @@ onmessage = async (ev) => {
     $("progs").innerHTML = def.lanzadores.map(l => {
       const p = ejec && ejec.progs.get(l.id);
       const est = lineaErr && lineaErr.id === l.id ? "error" : p ? (p.estado === "corre" ? "corre" : p.estado === "espera" ? "espera" : "") : "";
-      return `<button type="button" class="prog-tab" data-id="${l.id}" aria-pressed="${l.id === progSel}"><span class="punto ${est}"></span>Programa de ${l.id}</button>`;
+      return `<button type="button" class="prog-tab" data-id="${l.id}" aria-pressed="${edicion.ids.includes(l.id)}"><span class="punto ${est}"></span>Programa de ${l.id}</button>`;
     }).join("");
-    $("b-copiar-prog").hidden = !varios;
+    $("b-copiar-prog").hidden = !varios || edicion.ids.length > 1;
+    $("b-restaurar").hidden = edicion.ids.length > 1;
   }
   $("progs").addEventListener("click", (ev) => { const b = ev.target.closest(".prog-tab"); if (b) abrirPrograma(b.dataset.id); });
   function abrirPrograma(id) {
-    if (!programas[id]) return;
-    progSel = id;
-    $codigo.value = programas[id];
-    $codigo.setAttribute("aria-label", `Programa de ${id} en JavaScript`);
-    pintarProgs(); medirEditor(); pintarInspector(); marcasSucias = true;
+    if (!Object.hasOwn(programas, id)) return;
+    seleccionar(id);
+    configurarEdicion([id], true);
   }
+  function configurarEdicion(ids, forzar = false) {
+    ids = [...new Set(ids)].filter(id => Object.hasOwn(programas, id));
+    if (!ids.length) return;
+    if (!forzar && ids.join("|") === edicion.ids.join("|")) return;
+    const fuentes = ids.map(id => programas[id]);
+    edicion = { ids, mixto: fuentes.some(src => src !== fuentes[0]) };
+    progSel = ids[0];
+    $codigo.value = edicion.mixto ? "" : fuentes[0];
+    $codigo.placeholder = edicion.mixto ? "Escribe el código que quieres añadir o sustituir en las unidades seleccionadas." : "";
+    $codigo.setAttribute("aria-label", ids.length > 1 ? `Programa de ${ids.length} lanzadores en JavaScript` : `Programa de ${progSel} en JavaScript`);
+    $("acciones-multi").hidden = !edicion.mixto;
+    $("multi-estado").textContent = `${ids.length} programas distintos: Add anexa; Replace sustituye.`;
+    pintarProgs(); medirEditor(); pintarEdicion(); marcasSucias = true;
+  }
+  const CLAVE_CONFIRMAR_REPLACE = "cmg-juego-confirmar-replace";
+  let confirmarReplace = (() => { try { return localStorage.getItem(CLAVE_CONFIRMAR_REPLACE) !== "false"; } catch { return true; } })();
+  function preferirConfirmacionReplace(valor) {
+    confirmarReplace = !!valor;
+    try { localStorage.setItem(CLAVE_CONFIRMAR_REPLACE, JSON.stringify(confirmarReplace)); } catch { /* preferencia de sesión */ }
+  }
+  function confirmarReemplazo(ids) {
+    if (!confirmarReplace) return Promise.resolve(true);
+    const dialogo = $("confirmar-replace"), omitir = $("replace-no-preguntar");
+    omitir.checked = false;
+    dialogo.returnValue = "cancelar";
+    $("replace-texto").textContent = `Se sustituirá por completo el programa de ${ids.join(", ")}. Se perderá el código anterior de estas unidades.`;
+    return new Promise(resolve => {
+      dialogo.addEventListener("close", () => {
+        const aceptado = dialogo.returnValue === "reemplazar";
+        if (aceptado && omitir.checked) preferirConfirmacionReplace(false);
+        resolve(aceptado);
+      }, { once: true });
+      dialogo.showModal();
+    });
+  }
+  let aplicandoMulti = false;
+  async function aplicarMulti(reemplazar) {
+    if (ejec || !edicion.mixto || aplicandoMulti) return;
+    const ids = [...edicion.ids], nuevo = $codigo.value, destino = programas;
+    aplicandoMulti = true;
+    try {
+      if (reemplazar && !await confirmarReemplazo(ids)) return;
+      if (ejec || programas !== destino) return;
+      for (const id of ids) {
+        const anterior = programas[id];
+        programas[id] = reemplazar ? nuevo : anterior + (anterior && nuevo && !anterior.endsWith("\n") ? "\n" : "") + nuevo;
+      }
+      guardarProgramas(); configurarEdicion(ids, true); pintarInspector();
+    } finally { aplicandoMulti = false; }
+  }
+  $("b-add").addEventListener("click", () => aplicarMulti(false));
+  $("b-replace").addEventListener("click", () => aplicarMulti(true));
+  $("b-coordenadas").addEventListener("click", () => { const texto = $("coordenadas").value.trim(); if (texto) insertar(texto); });
   let confirmarCopia = false;
   $("b-copiar-prog").addEventListener("click", (ev) => {
     if (ejec) return;
@@ -1700,7 +1920,11 @@ onmessage = async (ev) => {
     confirmarRestaurar = false; ev.target.textContent = "Restaurar programa inicial";
     programas[progSel] = textoInicial(def, progSel); guardarProgramas(); abrirPrograma(progSel);
   });
-  function pintarEdicion() { $codigo.readOnly = !!ejec; marcasSucias = true; }
+  function pintarEdicion() {
+    $codigo.readOnly = !!ejec;
+    for (const id of ["b-add", "b-replace", "b-coordenadas", "coordenadas"]) $(id).disabled = !!ejec;
+    marcasSucias = true;
+  }
 
   // ---------- Editor de texto ----------
   const $codigo = $("codigo"), $gutter = $("gutter"), $banda = $("banda"), $espejo = $("espejo"), $resaltado = $("resaltado");
@@ -1729,7 +1953,7 @@ onmessage = async (ev) => {
   }
   const pad = () => parseFloat(getComputedStyle($codigo).paddingTop) || 10;
   function pintarBanda() {
-    const corre = lineaCorre[progSel], err = lineaErr && lineaErr.id === progSel ? lineaErr.linea : null;
+    const corre = !edicion.mixto && lineaCorre[progSel], err = !edicion.mixto && lineaErr && lineaErr.id === progSel ? lineaErr.linea : null;
     const l = err || corre;
     $banda.className = `banda ${l ? (err ? "err" : "corre") : ""}`;
     if (l && alturas.length >= l) {
@@ -1750,12 +1974,61 @@ onmessage = async (ev) => {
     $codigo.setSelectionRange(pos, pos + (lineas[l - 1] || "").length);
   }
   $codigo.addEventListener("input", () => {
-    programas[progSel] = $codigo.value;
+    if (!edicion.mixto) for (const id of edicion.ids) programas[id] = $codigo.value;
     if (lineaErr && lineaErr.id === progSel) { lineaErr = null; marcasSucias = true; }
     medirEditor();
-    guardarProgramas();
+    if (!edicion.mixto) guardarProgramas();
   });
   $codigo.addEventListener("scroll", pintarBanda);
+  // Localiza el carácter bajo el puntero con las mismas métricas y ajuste de línea del textarea.
+  // Así las comillas y los delimitadores contiguos no dependen de dónde deje el caret el navegador.
+  function caracterCodigo(ev) {
+    const r = $codigo.getBoundingClientRect(), cs = getComputedStyle($codigo), espejo = document.createElement("div");
+    for (const k of ["font", "lineHeight", "padding", "boxSizing", "whiteSpace", "overflowWrap", "wordBreak", "tabSize", "letterSpacing", "fontVariantLigatures"]) espejo.style[k] = cs[k];
+    Object.assign(espejo.style, { position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${$codigo.clientWidth}px`, height: `${$codigo.clientHeight}px`, overflow: "hidden", opacity: "0", pointerEvents: "none" });
+    const texto = document.createTextNode($codigo.value);
+    espejo.append(texto); document.body.append(espejo);
+    espejo.scrollTop = $codigo.scrollTop; espejo.scrollLeft = $codigo.scrollLeft;
+    const rango = document.createRange();
+    let pos = $codigo.selectionStart;
+    for (let i = 0; i < texto.length; i++) {
+      rango.setStart(texto, i); rango.setEnd(texto, i + 1);
+      if ([...rango.getClientRects()].some(c => ev.clientX >= c.left && ev.clientX < c.right && ev.clientY >= c.top && ev.clientY < c.bottom)) { pos = i; break; }
+    }
+    espejo.remove();
+    return pos;
+  }
+  function rangoCodigo(pos, triple) {
+    const src = $codigo.value, pila = [], pares = [];
+    let offset = 0;
+    for (const [tipo, txt] of lexico(src)) {
+      const desde = offset; offset += txt.length;
+      if (!triple && tipo === "str" && pos >= desde && pos < offset) return [desde, offset];
+      if (tipo !== "p") continue;
+      if ("([{".includes(txt)) pila.push({ c: txt, pos: desde });
+      else if (")]}".includes(txt)) {
+        const abre = pila.pop();
+        if (abre && "([{".indexOf(abre.c) === ")]}".indexOf(txt)) pares.push([abre.pos, desde]);
+        else pila.length = 0;
+      }
+    }
+    if (triple) {
+      // El delimitador pulsado tiene prioridad sobre cualquier par anidado que contenga.
+      const par = pares.find(([a, b]) => a === pos || b === pos);
+      if (par) return [par[0] + 1, par[1]];
+    }
+    return null;
+  }
+  $codigo.addEventListener("mousedown", (ev) => {
+    if (ev.button !== 0 || ev.detail < 2) return;
+    const rango = rangoCodigo(caracterCodigo(ev), ev.detail >= 3);
+    if (!rango) return;
+    ev.preventDefault(); $codigo.setSelectionRange(...rango);
+  });
+  $codigo.addEventListener("dblclick", (ev) => {
+    const rango = rangoCodigo(caracterCodigo(ev), false);
+    if (rango) { ev.preventDefault(); $codigo.setSelectionRange(...rango); }
+  });
   $codigo.addEventListener("drop", () => { insercion.arrastre++; $editor.classList.remove("soltar"); setTimeout(seleccionarHueco, 0); });
   new ResizeObserver(() => medirEditor()).observe($codigo);
   $codigo.addEventListener("keydown", (ev) => {
@@ -2123,9 +2396,9 @@ onmessage = async (ev) => {
   new MutationObserver(() => leerColores()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
   window.__banco = {
     get mundo() { return mundo; }, get def() { return def; }, get programas() { return programas; }, RETOS, instrumentar, lexico, normalizar,
-    turbo(n) { turbo = n; }, fijarSemilla(n) { semillaFija = true; semilla = n; }, usarEscenario(d) { guardarPropio(normalizar(d), true); }, elegirReto, ejecutar, abrirPrograma, seleccionar, get telemetria() { return telemetria; },
+    turbo(n) { turbo = n; }, fijarSemilla(n) { semillaFija = true; semilla = n; }, usarEscenario(d) { guardarPropio(normalizar(d), true); }, elegirReto, ejecutar, abrirPrograma, seleccionar, get seleccionadas() { return [...seleccionadas]; }, get telemetria() { return telemetria; },
   }; // para depurar y probar desde la consola
-  window.cmg = { insertar, alternarComentario, medirEditor, get codigo() { return $codigo; }, get ejecutando() { return !!ejec; } };
+  window.cmg = { insertar, alternarComentario, medirEditor, get codigo() { return $codigo; }, get ejecutando() { return !!ejec; }, get confirmarReplace() { return confirmarReplace; }, set confirmarReplace(v) { preferirConfirmacionReplace(v); } };
   pintarRuteo();
   pintarAyuda();
   def = defActual();
@@ -2135,3 +2408,4 @@ onmessage = async (ev) => {
   document.fonts && document.fonts.ready.then(() => { medirEditor(); });
   requestAnimationFrame(bucle);
 })();
+

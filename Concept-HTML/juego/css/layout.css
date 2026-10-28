@@ -1,8 +1,8 @@
 /* Codemageddon · reparto de la pantalla.
  * PC (data-forma="escritorio"): mapa | divisor | código, lado a lado, con el divisor arrastrable.
- * Teléfono (data-forma="movil"): mapa arriba, código abajo. Al abrir el teclado el código no cambia
- * de tamaño: sube y tapa parte del mapa, y la barra de símbolos queda pegada encima del teclado.
- * layout.js elige la forma y escribe --a / --b (reparto), --teclado y --sube. */
+ * Teléfono (data-forma="movil"): mapa arriba, código abajo. Al abrir el teclado, el código
+ * ocupa el viewport visual disponible y la barra de símbolos queda encima del teclado.
+ * layout.js elige la forma y mide el viewport visual. */
 
 .app {
   position: fixed; inset: 0; display: grid; min-height: 0;
@@ -69,6 +69,9 @@
 .app[data-forma="movil"] .vitales { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
 .app[data-forma="movil"] .vital { padding: 5px 7px; }
 .app[data-forma="movil"] .ins-cuerpo { padding: 0 10px 10px; }
+/* Toda la ficha se desplaza junta: la tira de signos vitales no tapa los datos. */
+.app[data-forma="movil"][data-inspector-movil="completo"] .inspector[data-estado="abierto"] { overflow-y: auto; overscroll-behavior: contain; }
+.app[data-forma="movil"][data-inspector-movil="completo"] .ins-cuerpo { flex: none; overflow: visible; }
 
 /* Código en teléfono: pestañas y paleta compactas; la consola queda plegada a una línea. */
 .app[data-forma="movil"] .tab { padding: 5px 9px; font-size: 10.5px; min-height: 30px; }
@@ -89,11 +92,17 @@
 .app[data-forma="movil"] .pie[data-abierto="true"] .consola { max-height: 7rem; }
 .app[data-forma="movil"] .consola .c { grid-template-columns: 5.4em minmax(0, 1fr); }
 
-/* Con el teclado abierto: el código sube sin cambiar de tamaño y tapa parte del mapa. */
-.app[data-forma="movil"] .zona-codigo { transition: transform .18s ease-out; z-index: 40; }
-.app.teclado[data-forma="movil"] .zona-codigo { transform: translateY(calc(-1 * var(--sube, 0px))); box-shadow: 0 0 0 1px var(--metal-negro), 0 -14px 40px rgba(0, 0, 0, .6); }
+/* Con el teclado abierto: todo el espacio útil queda para el código. */
+.app[data-forma="movil"] .zona-codigo { z-index: 40; }
+.app.teclado[data-forma="movil"] .zona-codigo { position: fixed; top: var(--codigo-arriba, 0px); left: 0; right: 0; height: var(--codigo-alto); overflow: hidden; }
+.app.teclado[data-forma="movil"] #v-programa { min-height: 0; }
+.app.teclado[data-forma="movil"] #v-programa > .editor { min-height: 0; }
+.app.teclado[data-forma="movil"] .tabs,
+.app.teclado[data-forma="movil"] .paleta,
+.app.teclado[data-forma="movil"] .coordenadas-manuales { display: none; }
 .app.teclado[data-forma="movil"] .divisor { visibility: hidden; }
 .app.teclado[data-forma="movil"] .pie { display: none; }
 
 /* En PC la paleta se parte en dos filas antes que esconder iconos. */
 .app[data-forma="escritorio"] .paleta { flex-wrap: wrap; }
+

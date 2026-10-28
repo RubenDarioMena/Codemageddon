@@ -35,8 +35,31 @@ Al cambiar CSS o JS, sube el sello `?v=N` de `index.html` para que el navegador 
 
 Minimalista con acentos metálicos. Lo que se lee (mapa, código, datos) va plano y limpio; el metal solo marca bordes, placas e iconos grabados. Los iconos están grabados en reposo y toman color al pasar el cursor. Una sola apariencia oscura.
 
-## Pendiente
+## Interacción del mapa y programas
+
+- Clic izquierdo y arrastre: caja de selección. Shift conserva la selección previa.
+- Rueda presionada: orbitar; botón derecho o dos dedos: desplazar; rueda o pellizco: zoom.
+- Doble clic o doble toque: unidades del mismo tipo visibles en pantalla.
+- En táctil, mantener 160 ms y arrastrar selecciona las unidades del recorrido. A los 480 ms se abre la ficha.
+- El inspector móvil abre la ficha completa. La preferencia local `cmg-juego-inspector-movil` admite `"tira"` para recuperar el modo anterior; la pantalla Settings queda pendiente.
+- Activa «Lugar manual» y haz doble clic/toque en el mapa para escribir sus coordenadas del suelo. «Insertar» las lleva al programa.
+- La selección de lanzadores con programas distintos muestra un borrador vacío: Add lo anexa a cada programa y Replace los sustituye. Editar el borrador no modifica los programas hasta aplicar una acción.
+- Replace pide confirmación; «No preguntar otra vez» persiste en este navegador. Una futura pantalla Settings puede reactivarla con `window.cmg.confirmarReplace = true`.
+- En móvil, el editor ocupa el viewport visual disponible encima del teclado y de la barra de símbolos.
+
+Pruebas de lógica sin dependencias:
+
+```bash
+node Concept-HTML/juego/pruebas/interaccion.cjs
+node --check Concept-HTML/juego/js/juego.js
+node --check Concept-HTML/juego/js/layout.js
+```
+
+La comprobación en navegador y en Samsung S24 Ultra con hyperMarker queda pendiente: las pruebas de lógica no validan eventos nativos, WebGL ni el teclado del dispositivo.
+
+## Otros pendientes
 
 - Probar el teclado en un iPhone real.
 - Cámara cenital con transición a 3D (brief §5).
 - Extraer la simulación a TypeScript (brief §7).
+

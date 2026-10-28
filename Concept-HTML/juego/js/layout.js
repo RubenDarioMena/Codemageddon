@@ -18,6 +18,8 @@
   // ---------- Forma y reparto ----------
   const REPARTO = { escritorio: 58, movil: 50 };
   let forma = null;
+  // Reserva para Settings: «tira» conserva la presentación móvil anterior.
+  app.dataset.inspectorMovil = leer("inspector-movil", "completo") === "tira" ? "tira" : "completo";
   function decidirForma() {
     if (forzada) return forzada;
     const w = innerWidth, h = innerHeight;
@@ -33,6 +35,7 @@
     if (f === forma) return;
     forma = f;
     app.dataset.forma = f;
+    app.dispatchEvent(new Event("cmg:forma"));
     divisor.setAttribute("aria-orientation", f === "movil" ? "horizontal" : "vertical");
     aplicarReparto(leer(`reparto-${f}`, REPARTO[f]));
     actualizarTeclado();
@@ -79,7 +82,7 @@
 
   // ---------- Teclado del teléfono ----------
   // Con interactive-widget=resizes-visual el teclado no encoge la página: tapa su parte de abajo.
-  // Lo que tapa se mide con visualViewport. El código sube esa altura más la barra de símbolos, sin cambiar de tamaño.
+  // El editor ocupa todo el viewport visual disponible encima de la barra de símbolos.
   const ALTO_SIMBOLOS = 46;
   const simbolos = $("simbolos"), tecladoSim = $("teclado-sim");
   let simulado = 0;
@@ -95,10 +98,15 @@
     tecladoSim.hidden = !(abierto && enMarco);
     document.documentElement.style.setProperty("--teclado", `${abierto ? teclado : 0}px`);
     if (abierto) {
-      const arriba = vv ? vv.offsetTop : 0;
-      const sube = Math.min(teclado + ALTO_SIMBOLOS, zonaCodigo.offsetTop - arriba - 4);
-      app.style.setProperty("--sube", `${Math.max(0, sube)}px`);
-    } else app.style.removeProperty("--sube");
+      const arriba = enMarco ? 0 : (vv ? vv.offsetTop : 0);
+      const alto = enMarco ? innerHeight - simulado : (vv ? vv.height : innerHeight - teclado);
+      app.style.setProperty("--codigo-arriba", `${arriba}px`);
+      app.style.setProperty("--codigo-alto", `${Math.max(0, alto - ALTO_SIMBOLOS)}px`);
+      requestAnimationFrame(() => window.cmg && window.cmg.medirEditor());
+    } else {
+      app.style.removeProperty("--codigo-arriba");
+      app.style.removeProperty("--codigo-alto");
+    }
   }
   if (window.visualViewport) {
     visualViewport.addEventListener("resize", actualizarTeclado);
@@ -193,3 +201,4 @@
   addEventListener("resize", () => { aplicarForma(); actualizarTeclado(); });
   aplicarForma();
 })();
+
